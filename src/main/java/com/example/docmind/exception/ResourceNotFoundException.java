@@ -1,13 +1,13 @@
 package com.example.docmind.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
-    ResourceNotFoundException(){
+    public ResourceNotFoundException(){
         super("Resources you are looking for not found");
     }
-    ResourceNotFoundException(String message){
+    public ResourceNotFoundException(String message){
         super(message);
     }
-    ResourceNotFoundException(String message,Throwable ex){
+    public ResourceNotFoundException(String message,Throwable ex){
         super(message,ex);
     }
 }
