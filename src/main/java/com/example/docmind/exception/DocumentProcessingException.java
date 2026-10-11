@@ -1,13 +1,13 @@
 package com.example.docmind.exception;
 
-public class DocumentProcessingException extends RuntimeException{
-    public DocumentProcessingException(String message){
-        super(message);
+import org.springframework.http.HttpStatus;
+
+public class DocumentProcessingException extends ApiException {
+    public DocumentProcessingException(String message) {
+        super(HttpStatus.UNPROCESSABLE_CONTENT, "DOCUMENT_PROCESSING_FAILED", message);
     }
-    DocumentProcessingException(){
-        super("Error in Document Processing");
-    }
-    public DocumentProcessingException(String message, Throwable ex){
-        super(message,ex);
+
+    public DocumentProcessingException(String message, Object data, Throwable ex) {
+        super(HttpStatus.UNPROCESSABLE_CONTENT, "DOCUMENT_PROCESSING_FAILED", message, data, ex);
     }
 }

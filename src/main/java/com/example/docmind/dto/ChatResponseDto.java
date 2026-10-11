@@ -2,17 +2,14 @@ package com.example.docmind.dto;
 
 import lombok.*;
 
-
-import java.util.List;
-
+// One question/answer exchange as persisted in the conversation.
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class ChatResponseDto {
-    private String answer;
-    private String conversationId;
-    private List<CitationDto> citations;
-    private Long responseTimeMs;
+    private ConversationSummaryDto conversation;
+    private MessageDto userMessage;
+    private MessageDto assistantMessage;
 }

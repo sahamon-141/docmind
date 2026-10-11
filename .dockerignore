@@ -1,0 +1,9 @@
+target
+frontend
+.git
+.idea
+.vscode
+.claude
+*.iml
+.env
+.env.*

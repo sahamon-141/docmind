@@ -1,0 +1,208 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ---------------------------------------------------------------------------------------------
+   Design tokens. Warm paper/ink palette with a single terracotta accent and hairline borders.
+   Muted text colours are darkened/lightened from the reference to keep WCAG AA contrast.
+   --------------------------------------------------------------------------------------------- */
+:root {
+  --bg: #f2f0ed;
+  --surface: #ffffff;
+  --surface-sunken: #eae7e2;
+  --ink: #111111;
+  --ink-soft: #333333;
+  --muted: #646464;
+  --accent: #d96c4e;
+  --accent-ink: #a8482b;
+  --accent-soft: rgba(217, 108, 78, 0.12);
+  --forest: #2d4d38;
+  --forest-soft: rgba(45, 77, 56, 0.1);
+  --danger: #b42318;
+  --danger-soft: rgba(180, 35, 24, 0.08);
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --focus: #111111;
+  --shadow: 0 1px 2px rgba(17, 17, 17, 0.04), 0 8px 24px rgba(17, 17, 17, 0.06);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e0e0e;
+  --surface: #171717;
+  --surface-sunken: #1f1f1f;
+  --ink: #e0e0e0;
+  --ink-soft: #b4b4b4;
+  --muted: #8d8d8d;
+  --accent: #e08d79;
+  --accent-ink: #eaa595;
+  --accent-soft: rgba(224, 141, 121, 0.14);
+  --forest: #7fb38f;
+  --forest-soft: rgba(127, 179, 143, 0.12);
+  --danger: #f0907f;
+  --danger-soft: rgba(240, 144, 127, 0.1);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --focus: #e6e6e6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Fraunces', ui-serif, Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-paper: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-forest: var(--forest);
+  --color-forest-soft: var(--forest-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-fade-in: fade-in 220ms var(--ease-out-soft) both;
+  --animate-rise: rise 280ms var(--ease-out-soft) both;
+  --animate-blink: blink 1s steps(2, start) infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes blink {
+    to { visibility: hidden; }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  dialog::backdrop {
+    background: rgba(10, 10, 10, 0.45);
+    backdrop-filter: blur(2px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Compact uppercase mono label, the signature detail of the design language. */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Long-form answer typography. */
+  .prose-answer {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .prose-answer > * + * {
+    margin-top: 0.75em;
+  }
+  .prose-answer h1,
+  .prose-answer h2,
+  .prose-answer h3 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-top: 1.25em;
+  }
+  .prose-answer h1 { font-size: 1.4rem; }
+  .prose-answer h2 { font-size: 1.2rem; }
+  .prose-answer h3 { font-size: 1.05rem; }
+  .prose-answer ul { list-style: disc; padding-left: 1.25rem; }
+  .prose-answer ol { list-style: decimal; padding-left: 1.25rem; }
+  .prose-answer li + li { margin-top: 0.25em; }
+  .prose-answer a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+  .prose-answer strong { font-weight: 600; }
+  .prose-answer blockquote {
+    border-left: 2px solid var(--accent);
+    padding-left: 0.875rem;
+    color: var(--ink-soft);
+  }
+  .prose-answer code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.1em 0.35em;
+  }
+  .prose-answer pre {
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1rem;
+    overflow-x: auto;
+  }
+  .prose-answer pre code {
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+  .prose-answer table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .prose-answer th,
+  .prose-answer td {
+    border-bottom: 1px solid var(--line);
+    padding: 0.4rem 0.5rem;
+    text-align: left;
+  }
+}

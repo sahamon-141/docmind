@@ -1,7 +1,6 @@
 package com.example.docmind.service;
 
 import com.example.docmind.exception.DocumentProcessingException;
-import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -11,37 +10,31 @@ import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
 
+// PDFs are read page by page (so citations carry page numbers); everything else goes through Apache Tika.
 @Service
 public class DocumentParserService {
-    private final static Logger log = LoggerFactory.getLogger(DocumentParserService.class);
-    public List<Document> parse(MultipartFile file){
-        String fileName = file.getOriginalFilename()!=null?file.getOriginalFilename():"document";
-        String contentType = file.getContentType()!=null?file.getContentType().toLowerCase():"";
-        log.info("Parsing Document: {},size: {} bytes,contentType:{}",fileName,file.getSize(),contentType);
-        try{
-            Resource resource = new ByteArrayResource(file.getBytes()){
-                @Override //we are overriding the getFileName method
-                public @Nullable String getFilename(){
-                    return fileName;
-                }
-            };
-            //check if it is a pdf
-            if(fileName.toLowerCase().endsWith(".pdf")||contentType.contains("pdf")){
-                return parsePdf(resource);
-            }
-            //else pass it to the genericFile parser
-            else{
-                return parseGenericFile(resource);
-            }
+    private static final Logger log = LoggerFactory.getLogger(DocumentParserService.class);
 
-        }catch(IOException e){
-            log.error("Failed to read file bytes {}",fileName);
-            throw new DocumentProcessingException("Could not read uploaded file {}");
+    public List<Document> parse(DocumentValidationService.ValidatedFile file) {
+        log.info("Parsing document: {}, size: {} bytes, type: {}", file.filename(), file.bytes().length, file.contentType());
+        Resource resource = new ByteArrayResource(file.bytes()) {
+            @Override //we are overriding the getFileName method
+            public String getFilename() {
+                return file.filename();
+            }
+        };
+        try {
+            List<Document> documents = "application/pdf".equals(file.contentType())
+                    ? parsePdf(resource)
+                    : new TikaDocumentReader(resource).read();
+            // drop pages/sections without any extractable text
+            return documents.stream().filter(d -> d.getText() != null && !d.getText().isBlank()).toList();
+        } catch (RuntimeException e) {
+            log.warn("Failed to parse {}: {}", file.filename(), e.getClass().getSimpleName());
+            throw new DocumentProcessingException("The document could not be parsed. It may be corrupted or password-protected.");
         }
     }
 
@@ -50,13 +43,6 @@ public class DocumentParserService {
                 .withPageBottomMargin(0)
                 .withPageTopMargin(0)
                 .build();
-        PagePdfDocumentReader documentReader = new PagePdfDocumentReader(resource,config);
-        return documentReader.read();
-    }
-
-    private List<Document> parseGenericFile(Resource resource) {
-        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
-
-        return tikaDocumentReader.read();
+        return new PagePdfDocumentReader(resource, config).read();
     }
 }
