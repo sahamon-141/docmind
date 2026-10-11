@@ -27,12 +27,13 @@ Each account is a private workspace: documents, vector chunks, search results, c
 10. [Running locally](#running-locally)
 11. [Environment variables](#environment-variables)
 12. [Docker Compose](#docker-compose)
-13. [API reference and examples](#api-reference-and-examples)
-14. [Testing](#testing)
-15. [Security considerations](#security-considerations)
-16. [Troubleshooting](#troubleshooting)
-17. [Known limitations](#known-limitations)
-18. [Future improvements](#future-improvements)
+13. [Deploying (Render + Vercel)](#deploying-render--vercel)
+14. [API reference and examples](#api-reference-and-examples)
+15. [Testing](#testing)
+16. [Security considerations](#security-considerations)
+17. [Troubleshooting](#troubleshooting)
+18. [Known limitations](#known-limitations)
+19. [Future improvements](#future-improvements)
 
 ---
 
@@ -409,6 +410,62 @@ Stop with `docker compose --profile app down` (add `-v` to delete the database v
 
 ---
 
+## Deploying (Render + Vercel)
+
+The backend and PostgreSQL run on **Render**; the static frontend runs on **Vercel**. Vercel **proxies `/api/*` to Render** (see [`frontend/vercel.json`](frontend/vercel.json)), so the browser only ever talks to your Vercel domain:
+
+```mermaid
+flowchart LR
+    B[Browser] -->|"https://docmind.vercel.app"| V[Vercel<br/>static SPA]
+    V -->|"rewrite /api/* (server side)"| R[Render web service<br/>docmind-api]
+    R --> D[(Render PostgreSQL<br/>+ pgvector)]
+```
+
+Why the proxy matters: `vercel.app` and `onrender.com` are different *sites*. If the browser called Render directly, the refresh cookie would be a third-party cookie, which Safari and Firefox block and Chrome is restricting, so users would be signed out on every reload. Through the rewrite the cookie stays first-party on your Vercel domain and keeps `SameSite=Strict`, and no CORS is needed for API calls. Leave `VITE_API_BASE_URL` empty.
+
+### 1. Backend and database on Render
+
+1. Push the repository to GitHub (or GitLab).
+2. In Render: **New → Blueprint**, pick the repository. Render reads [`render.yaml`](render.yaml) and proposes:
+   - `docmind-db` — PostgreSQL 16. Render's PostgreSQL supports the `vector` extension; the Flyway migration enables it on first start.
+   - `docmind-api` — a Docker web service built from the root `Dockerfile`, with the database credentials wired in automatically and a randomly generated `JWT_SECRET`.
+3. When asked for the values marked `sync: false`, enter:
+   - `OPENAI_API_KEY` — your provider key.
+   - `CORS_ALLOWED_ORIGINS` — your Vercel URL, for example `https://docmind.vercel.app`. You may not know it yet; put a placeholder and update it after step 2 below. It is needed even with the proxy, because the refresh/logout CSRF guard only accepts browser `Origin`s that are the backend's own host or on this list.
+4. Deploy. The first build takes a few minutes (Maven dependencies). When it is live, open `https://<your-service>.onrender.com/actuator/health` — it should return `{"status":"UP"}`.
+
+The service reads Render's `PORT` variable automatically. `SPRING_PROFILES_ACTIVE=prod` means none of the development fallbacks apply: the app refuses to start without `JWT_SECRET`, database credentials or `OPENAI_API_KEY`.
+
+<details>
+<summary>Setting it up by hand instead of with the Blueprint</summary>
+
+1. **New → PostgreSQL**, version 16. Note the *internal* hostname, port, database, user and password.
+2. **New → Web Service**, connect the repo, **Runtime: Docker**, Dockerfile path `./Dockerfile`, health check path `/actuator/health`.
+3. Environment variables: `SPRING_PROFILES_ACTIVE=prod`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (from step 1), `JWT_SECRET` (output of `openssl rand -base64 48`), `OPENAI_API_KEY`, `CORS_ALLOWED_ORIGINS=https://<your-app>.vercel.app`, `REFRESH_COOKIE_SECURE=true`.
+</details>
+
+### 2. Frontend on Vercel
+
+1. Edit [`frontend/vercel.json`](frontend/vercel.json) and replace `docmind-api.onrender.com` (two places) with your Render service's hostname, then commit and push. Vercel cannot read environment variables inside rewrites, so the hostname has to live in this file.
+2. In Vercel: **Add New → Project**, import the repository, and set **Root Directory** to `frontend`. Vercel detects Vite; `vercel.json` already sets the build command (`npm run build`) and output directory (`dist`).
+3. Do **not** set `VITE_API_BASE_URL`. Deploy.
+4. Copy the production URL (for example `https://docmind.vercel.app`) into `CORS_ALLOWED_ORIGINS` on Render and redeploy the backend. If you also use preview deployments or a custom domain, add those origins too, comma-separated.
+
+`vercel.json` also serves `index.html` for client-side routes such as `/chat/<id>`, sets long cache headers on hashed assets, and applies the same security headers and Content-Security-Policy as the nginx image.
+
+### 3. Check the deployment
+
+- Open the Vercel URL, register, and reload the page: you should stay signed in. If you are sent back to the login page, see the troubleshooting table below.
+- Upload a small `.txt` file; it should reach *Indexed*.
+- Ask a question; tokens should stream in.
+
+### Hosting notes
+
+- **Free plans.** Render's free web services sleep after inactivity and take up to about a minute to wake, so the first request can time out through the Vercel proxy; retry, or use a paid instance. The free plan's 512 MB of memory is tight for Spring Boot plus Tika on large PDFs, which is why the Blueprint uses `starter`. Render's free PostgreSQL is deleted after a limited period, so use a paid database for anything you want to keep.
+- **Streaming through the proxy.** Answers are streamed as Server-Sent Events through the Vercel rewrite. This was not tested on Vercel itself. If tokens arrive all at once or long answers are cut off, the proxy is buffering or timing out. The answer is still saved server-side and appears after a reload. The direct alternative is described next.
+- **Calling Render directly (no proxy).** This is possible but not recommended. Set `VITE_API_BASE_URL=https://<service>.onrender.com` on Vercel, remove the `/api` and `/actuator` rewrites, and on Render set `REFRESH_COOKIE_SAME_SITE=None`, `REFRESH_COOKIE_SECURE=true` and `CORS_ALLOWED_ORIGINS=https://<your-app>.vercel.app`. Browsers that block third-party cookies will then lose the session on reload. A custom domain for both (for example `app.example.com` and `api.example.com`) makes them same-site again and avoids this.
+- **Other databases.** Any PostgreSQL with pgvector works (Neon, Supabase and others) — set the `DB_*` variables; most hosted providers require SSL from outside their network, which you can enable with `SPRING_DATASOURCE_URL=jdbc:postgresql://<host>:5432/<db>?sslmode=require`.
+
 ## API reference and examples
 
 Interactive documentation: **http://localhost:8081/swagger-ui.html** (OpenAPI JSON at `/v3/api-docs`). Click **Authorize** and paste an access token to call protected endpoints.
@@ -596,6 +653,8 @@ npm run build               # production build
 | `Found non-empty schema(s) "public" but no schema history table` | You are running an older build. The current configuration baselines legacy databases automatically. |
 | `expected 1536 dimensions` / dimension errors | The embedding model must output 1536-dimensional vectors, or adjust `VECTOR(1536)` in a new migration and `spring.ai.vectorstore.pgvector.dimensions`. |
 | Signed out after every page reload | The refresh cookie is not stored: use the Vite dev server (same origin), or set `REFRESH_COOKIE_SECURE=false` on plain HTTP outside `localhost`. |
+| Deployed app signs you out on every reload | The refresh cookie is not first-party: make sure the frontend calls `/api` through the Vercel rewrite (no `VITE_API_BASE_URL`) and that the hostname in `frontend/vercel.json` is correct. |
+| `403 CSRF_REJECTED` on refresh/logout after deploying | Add your exact Vercel origin (scheme + host, no trailing slash) to `CORS_ALLOWED_ORIGINS` on Render and redeploy. |
 | `docker compose` complains about `doc-mind-postgres` already existing | A container from an earlier checkout uses that name. Start that one (`docker start doc-mind-postgres`) or remove it. |
 | Backend tests fail with `Could not find a valid Docker environment` | Start Docker; the integration tests need it. |
 | Port 5434, 8081 or 5173 in use | Change `DB_PORT`, `SERVER_PORT` (and `DEV_API_PROXY_TARGET`) or stop the other process. |

@@ -60,7 +60,8 @@ spring:
       max-request-size: ${MAX_REQUEST_SIZE:100MB}
 
 server:
-  port: ${SERVER_PORT:8081}
+  # SERVER_PORT wins; PORT is what Render (and similar platforms) inject
+  port: ${SERVER_PORT:${PORT:8081}}
   error:
     include-stacktrace: never
     include-message: never
