@@ -1,0 +1,27 @@
+# Test profile. The datasource URL/credentials come from the Testcontainers @ServiceConnection.
+spring:
+  datasource:
+    username: test
+    password: test
+  ai:
+    # External model calls are replaced by deterministic test doubles (TestAiConfiguration).
+    model:
+      chat: none
+      embedding: none
+    openai:
+      api-key: test-key-not-used
+
+app:
+  cors:
+    allowed-origins: http://localhost:5173
+  security:
+    jwt:
+      secret: test-only-signing-secret-that-is-long-enough-0123456789
+    refresh:
+      cookie-secure: false
+      # rotation reuse is detected immediately in tests; the grace window has its own unit test
+      reuse-grace-period: 0s
+
+logging:
+  level:
+    com.example.docmind: INFO

@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.util.UUID;
 
+// Result of one upload. For multi-upload, failed files are reported per item with status FAILED.
 @Getter
 @Setter
 @AllArgsConstructor
@@ -14,7 +15,7 @@ public class DocumentResponseDto {
     private UUID id;
     private String filename;
     private long fileSize;
-    private DocumentStatus documentStatus;
+    private DocumentStatus status;
     private Integer chunksCreated;
     private String message;
 }

@@ -1,7 +1,8 @@
 package com.example.docmind.dto;
 
-import java.util.List;
 import lombok.*;
+
+import java.util.List;
 
 @Getter
 @Setter
