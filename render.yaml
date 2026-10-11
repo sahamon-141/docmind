@@ -7,9 +7,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    # Spring Boot + Apache Tika need more than the free plan's 512 MB to parse larger documents.
-    # "free" works for a demo, but it sleeps when idle and may run out of memory on big PDFs.
-    plan: starter
+    plan: free
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
@@ -56,6 +54,5 @@ databases:
     databaseName: docmind
     user: docmind
     postgresMajorVersion: "16"
-    plan: basic-256mb
-    # only the backend (inside Render's private network) needs access
+    plan: free
     ipAllowList: []
