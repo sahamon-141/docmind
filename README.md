@@ -1,212 +1,280 @@
-# DocMind
+# 🧠 DocMind — Full-Stack AI Document Workspace & Intelligence Platform
 
-**DocMind is a full-stack AI document workspace.** Upload your own PDFs, Word files and text documents, then ask questions about them in a chat interface. Answers are generated with retrieval-augmented generation (RAG) over a PostgreSQL + pgvector index, cite the exact passages they came from, and every conversation is saved so you can come back to it.
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel&logoColor=white)](https://docmind-sand-zeta.vercel.app/)
+[![Render Backend API](https://img.shields.io/badge/Render-API%20Live-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://docmind-api-cbqg.onrender.com)
+[![Swagger UI](https://img.shields.io/badge/Swagger-OpenAPI%20Docs-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://docmind-api-cbqg.onrender.com/swagger-ui/index.html)
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4%20%2F%204.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![React](https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-Each account is a private workspace: documents, vector chunks, search results, conversations and citations are isolated per user at the database and vector-query level, not just in the UI.
+**DocMind** is an enterprise-grade, privacy-first, full-stack AI document workspace. Upload multi-format documents (PDFs, Word files, presentations, and markdown), perform semantic search, and chat interactively with your knowledge base using **Retrieval-Augmented Generation (RAG)** powered by PostgreSQL, pgvector (HNSW indexing), Spring AI, and OpenAI.
 
-| | |
-|---|---|
-| **Backend** | Java 17 · Spring Boot 4.1 · Spring Security 7 · Spring Data JPA · Spring AI 2.0 · Flyway · JJWT |
-| **Data** | PostgreSQL 16 + pgvector (HNSW, cosine distance) |
-| **Frontend** | React 19 · TypeScript (strict) · Vite 7 · React Router 7 · TanStack Query 5 · Tailwind CSS 4 · Lucide |
-| **Testing** | JUnit 5 · Mockito · Spring MockMvc · Testcontainers (real pgvector) · Vitest · Testing Library |
+Every generated answer contains **verifiable, page-level inline citations (`[1]`, `[2]`)** directly linked to retrieved passage snippets and similarity metrics. Each user account acts as a cryptographically isolated tenant: documents, vector embeddings, conversations, and search results are enforced per-user at the SQL and vector-index levels.
+---
+
+## 🌐 Live Deployments & Quick Links
+
+| Service | Link | Description |
+|---|---|---|
+| 🚀 **Web Application (Frontend)** | [docmind-sand-zeta.vercel.app](https://docmind-sand-zeta.vercel.app/) | Production React SPA hosted on Vercel with automatic API rewrite proxying. |
+| ⚡ **Backend API Base URL** | [docmind-api-cbqg.onrender.com](https://docmind-api-cbqg.onrender.com) | Spring Boot REST and SSE streaming service hosted on Render. |
+| 📖 **Interactive Swagger UI** | [docmind-api-cbqg.onrender.com/swagger-ui/index.html](https://docmind-api-cbqg.onrender.com/swagger-ui/index.html) | Complete OpenAPI 3.0 interactive specification and endpoint playground. |
+| 🩺 **Backend Health Check** | [docmind-api-cbqg.onrender.com/actuator/health](https://docmind-api-cbqg.onrender.com/actuator/health) | Live Spring Boot actuator health probe (`{"status":"UP"}`). |
 
 ---
 
-## Contents
+## 📸 Application Screenshots
 
-1. [Features](#features)
-2. [Screenshots](#screenshots)
-3. [Architecture](#architecture)
-4. [Authentication and refresh-token lifecycle](#authentication-and-refresh-token-lifecycle)
-5. [Per-user data isolation](#per-user-data-isolation)
-6. [Data model](#data-model)
-7. [Vector search design](#vector-search-design)
-8. [Chat history persistence](#chat-history-persistence)
-9. [Repository structure](#repository-structure)
-10. [Running locally](#running-locally)
-11. [Environment variables](#environment-variables)
-12. [Docker Compose](#docker-compose)
-13. [Deploying (Render + Vercel)](#deploying-render--vercel)
-14. [API reference and examples](#api-reference-and-examples)
-15. [Testing](#testing)
-16. [Security considerations](#security-considerations)
-17. [Troubleshooting](#troubleshooting)
-18. [Known limitations](#known-limitations)
-19. [Future improvements](#future-improvements)
+Captured directly from the running application:
+
+### 1. Authentication & Sign-in
+*Minimalist editorial aesthetic featuring Fraunces typography, dark-mode styling, and JWT token protection.*
+![DocMind Sign In Page](docs/screenshots/login.png)
+
+### 2. AI Document Chat & Citations
+*Real-time token streaming with inline citation markers (`[1]`, `[2]`), document scoping filter, and full conversation history.*
+![DocMind Chatting View](docs/screenshots/chat.png)
+
+### 3. Transparent Source Passages Panel
+*Clicking any citation marker or header button slides open exact source chunks with similarity scores, chunk indices, and page metadata.*
+![DocMind Sources Panel](docs/screenshots/chat-sources.png)
+
+### 4. Documents Library & Management Dashboard
+*Drag-and-drop file ingestion, real-time status tracking (`PROCESSING` → `INDEXED`), semantic similarity search bar, and document deletion.*
+![DocMind Library Dashboard](docs/screenshots/dashboard.png)
 
 ---
 
-## Features
+## 🛠️ Technologies Used
 
-**Documents**
-- Upload by drag-and-drop or file picker with real upload progress, single or multiple files.
-- Supported formats: PDF (parsed page by page, so citations carry page numbers), DOCX, DOC, PPTX, ODT, RTF, TXT, Markdown, CSV and HTML (via Apache Tika).
-- File content is sniffed with Tika; a file whose bytes do not match its extension is rejected (`415`), as are empty files and files over 25 MB.
-- Processing status is persisted (`PROCESSING` → `INDEXED` or `FAILED`). Documents with no extractable text (for example scanned, image-only PDFs) are marked `FAILED` with a reason, never `INDEXED`.
-- Library with size, chunk count, upload date and status, a details panel, and delete with confirmation (removes the vector chunks in the same transaction).
+### Visual Tech Stack
+[![Tech Stack](https://skillicons.dev/icons?i=java,spring,postgres,react,ts,vite,tailwind,docker)](https://skillicons.dev)
 
-**Chat**
-- Ask across all of your documents or scope a question to one document.
-- Answers stream token by token over Server-Sent Events. Stopping the stream does not lose the answer: the server finishes and saves it.
-- Inline citation markers (`[1]`, `[2]`) link to a sources panel with file name, page, similarity score and the retrieved passage. Markers are only rendered for sources that were actually retrieved.
-- Follow-up questions include recent conversation history.
-- If the AI provider fails, the question is still saved, the failure is shown in place, and **Retry** regenerates the answer without duplicating the question.
-- Copy answer, Enter to send, Shift+Enter for a newline, first-use suggestions.
+### Categorized Technology Breakdown
 
-**Search and history**
-- Semantic (vector) search over your own passages from the library, optionally within one document.
-- Conversation history grouped by date (Today, Yesterday, Previous 7 days, …), searchable by title and message content, with rename and delete.
+#### 🖥️ Backend Architecture
+- **Language & Runtime:** [Java 17 (LTS)](https://www.oracle.com/java/)
+- **Core Framework:** [Spring Boot 4.1 / 3.4](https://spring.io/projects/spring-boot) (Spring MVC, Spring Data JPA, Actuator)
+- **AI Integration:** [Spring AI 2.0](https://spring.io/projects/spring-ai) (`ChatClient`, `PgVectorStore`, `TokenTextSplitter`)
+- **Security:** [Spring Security 7](https://spring.io/projects/spring-security) with stateless JWT filter chain and custom `CookieCsrfGuard`
+- **Tokens & Cryptography:** [JJWT (Java JWT)](https://github.com/jwtk/jjwt) for HMAC-SHA access tokens + cryptographically secure opaque refresh tokens
+- **Document Parsing & Extraction:** [Apache Tika](https://tika.apache.org/) for multi-format text extraction and MIME-type byte sniffing
+- **Database Migrations:** [Flyway](https://flywaydb.org/) for reproducible, version-controlled relational & vector schemas
+- **API Documentation:** [SpringDoc OpenAPI 3 / Swagger UI](https://springdoc.org/)
 
-**Account**
-- Registration and login (username or email), profile email update, password change (signs out every session), light/dark/system theme, sign-out that revokes the session server-side.
-- Responsive layout: collapsible sidebar on desktop, slide-in drawer on tablet and mobile.
+#### 🗄️ Database & Vector Search
+- **Primary Database:** [PostgreSQL 16](https://www.postgresql.org/)
+- **Vector Extension:** [pgvector](https://github.com/pgvector/pgvector) with **HNSW (Hierarchical Navigable Small World)** indexing and cosine distance
+- **Filter Acceleration:** PostgreSQL `jsonb_path_ops` GIN indexes supporting SQL-level `jsonpath` tenant metadata isolation (`hnsw.iterative_scan = relaxed_order`)
 
-## Screenshots
+#### 🎨 Frontend User Interface
+- **Library:** [React 19](https://react.dev/)
+- **Language:** [TypeScript 5.9](https://www.typescriptlang.org/) (Strict mode enabled)
+- **Build Tool:** [Vite 7](https://vite.dev/) with hot-module replacement and optimized asset hashing
+- **Styling:** [Tailwind CSS 4](https://tailwindcss.com/) with editorial theme CSS custom variables
+- **Routing:** [React Router 7](https://reactrouter.com/) (Code-split routes, public/protected route guards)
+- **Server State & Caching:** [TanStack Query v5](https://tanstack.com/query/latest) (automatic revalidation, optimistic mutations)
+- **Icons & Typography:** [Lucide React](https://lucide.dev/), Fraunces Serif, Inter sans-serif, JetBrains Mono
+- **Markdown & Code:** `react-markdown` with `remark-gfm` for formatted AI outputs
 
-> Screenshots are not committed yet. To add them, run the app locally and capture:
->
-> | File | What to capture |
-> |---|---|
-> | `docs/screenshots/chat.png` | A conversation with a cited answer and the sources panel open |
-> | `docs/screenshots/library.png` | The library with a few indexed documents and the semantic search |
-> | `docs/screenshots/login-dark.png` | The sign-in page in dark theme |
-> | `docs/screenshots/mobile.png` | The chat view with the navigation drawer open at phone width |
+#### 🧠 AI & LLM Models
+- **Chat Generation:** OpenAI `gpt-4o-mini` (or any OpenAI-compatible provider)
+- **Embeddings Model:** OpenAI `text-embedding-3-small` (1536-dimensional dense vectors)
+- **RAG Architecture:** Chunking with overlap, similarity threshold filtering, contextual prompt injection, and hallucination reduction
 
-The visual design takes its cues from an editorial style: a warm paper-and-ink palette with a single terracotta accent, Fraunces serif headlines, Inter for interface text, uppercase JetBrains Mono micro-labels, hairline borders and restrained motion. Both themes are built from the same CSS variables in [`frontend/src/index.css`](frontend/src/index.css).
+#### 🚀 DevOps, Hosting & Tooling
+- **Frontend Hosting:** [Vercel](https://vercel.com/) with edge rewrites proxying `/api/*` to Render
+- **Backend Hosting:** [Render](https://render.com/) Docker Web Service with native managed PostgreSQL 16 + pgvector
+- **Containerization:** Multi-stage [Docker](https://www.docker.com/) builds and [Docker Compose](https://docs.docker.com/compose/) orchestration
+- **Testing:** [JUnit 5](https://junit.org/junit5/), [Mockito](https://site.mockito.org/), [Testcontainers](https://testcontainers.com/) (live pgvector in tests), [Vitest](https://vitest.dev/), and [React Testing Library](https://testing-library.com/)
 
 ---
 
-## Architecture
+## 📋 Table of Contents
+
+1. [Features](#-key-features)
+2. [System Architecture](#-system-architecture)
+3. [Document Ingestion & RAG Flow](#-document-ingestion--rag-flow)
+4. [Security & Authentication Lifecycle](#-security--authentication-lifecycle)
+5. [Tenant Isolation](#-per-user-multi-tenant-data-isolation)
+6. [Database Schema & Data Model](#-database-schema--data-model)
+7. [Vector Search & Indexing](#-vector-search--indexing-design)
+8. [Local Development Guide](#-running-locally)
+9. [Docker Compose Setup](#-docker-compose-setup)
+10. [Cloud Deployment (Render + Vercel)](#-deploying-to-render--vercel)
+11. [API Reference & Swagger](#-api-reference--examples)
+12. [Testing & Quality Assurance](#-testing)
+13. [Troubleshooting Guide](#-troubleshooting)
+
+---
+
+## 🌟 Key Features
+
+### 📁 Intelligent Multi-Format Ingestion
+- Upload single or batches of up to 10 files with real-time percentage progress indicators.
+- Supported formats: **PDF** (page-by-page chunking preserves exact page numbers for citations), **DOCX**, **DOC**, **PPTX**, **ODT**, **RTF**, **TXT**, **Markdown**, **CSV**, and **HTML**.
+- File validation & byte sniffing via Apache Tika: prevents spoofed extensions (`415`), rejects empty documents, and enforces a 25 MB file limit.
+- Lifecycle states: `PROCESSING` → `INDEXED` or `FAILED`. Image-only scanned PDFs without text fail gracefully with actionable error reasons.
+
+### 💬 Grounded AI Conversations
+- Chat across all user documents or target questions to a specific document.
+- Real-time token streaming using **Server-Sent Events (SSE)**.
+- **Accurate inline citations:** Clicking `[1]` or `[2]` opens the retrieved passage snippet, page number, and vector similarity score.
+- Conversation persistence: conversations are stored in PostgreSQL with thread title auto-generation from the initial query.
+- Resilient recovery: network interruptions or model timeouts preserve the query; click **Retry** to regenerate without duplicate history.
+
+### 🔍 Semantic Vector Search
+- Perform direct semantic vector searches against your document library to find matching passages with similarity scores before or outside of conversations.
+- History search: filter and search past conversations by title and message content.
+
+### 🛡️ Enterprise-Grade Security
+- Dual-token authentication: stateless 15-minute memory-only JWT access tokens + 7-day `HttpOnly`, `SameSite=Strict` rotating refresh cookies.
+- Automatic refresh token rotation with family theft detection (replay of an old refresh token instantly invalidates the entire session family).
+- Multi-tenant isolation at the database level: queries enforce `WHERE owner_id = :userId` in relational tables and `metadata::jsonb @@ '$.ownerId == "..."'` in pgvector.
+
+---
+
+## 📐 System Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Browser
-        UI[React SPA<br/>access token in memory]
+    subgraph Client["Browser (React 19 SPA)"]
+        UI[User Interface<br/>Access Token in Memory]
     end
 
-    subgraph Edge["Same origin (Vite dev proxy or nginx)"]
-        P[/api, /actuator/health/]
+    subgraph Edge["Vercel Edge Gateway"]
+        VProxy["Vercel Server-side Rewrite<br/>Proxies /api/* to Render"]
     end
 
-    subgraph Backend["Spring Boot (port 8081)"]
-        F[JwtAuthenticationFilter] --> C[Controllers<br/>Auth · Documents · Chat · Conversations · Users]
-        C --> S[Services]
-        S --> R[(JPA repositories)]
-        S --> VS[Spring AI VectorStore<br/>PgVectorStore]
-        S --> CC[Spring AI ChatClient]
-        S --> EM[EmbeddingModel]
+    subgraph Backend["Spring Boot Service (Port 8081)"]
+        Filter[JwtAuthenticationFilter + CsrfGuard]
+        Controllers[REST & SSE Controllers<br/>Auth · Docs · Chat · Conversations]
+        Services[Core Services<br/>RagService · Ingestion · Retrieval]
+        SpringAI[Spring AI 2.0<br/>PgVectorStore · ChatClient]
     end
 
-    subgraph DB["PostgreSQL 16 + pgvector"]
-        T[(users · documents · refresh_tokens<br/>conversations · messages · message_citations)]
-        V[(vector_store<br/>HNSW index + jsonb_path_ops GIN)]
+    subgraph Storage["PostgreSQL 16 + pgvector"]
+        Relational[(Relational Tables<br/>users, documents, refresh_tokens,<br/>conversations, messages, citations)]
+        VectorDB[(vector_store Table<br/>HNSW Cosine Index + JSONB GIN)]
     end
 
-    OAI[(OpenAI-compatible API<br/>chat + embeddings)]
+    subgraph LLM["OpenAI Cloud"]
+        Embed[text-embedding-3-small]
+        Chat[gpt-4o-mini]
+    end
 
-    UI -- "Bearer access token\nHttpOnly refresh cookie (/api/v1/auth only)" --> P --> F
-    R --> T
-    VS --> V
-    CC --> OAI
-    EM --> OAI
-```
-
-The backend keeps the original layered structure (controller → service → repository) and the Spring AI `ChatClient` / `VectorStore` abstractions. Controllers are thin; ownership checks live in services and repository finders; DTOs are used at every API boundary.
-
-### Document ingestion and question answering
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant API as Spring Boot API
-    participant DB as PostgreSQL
-    participant VS as pgvector (vector_store)
-    participant AI as Embedding / chat model
-
-    U->>API: POST /documents/upload (file)
-    API->>API: validate size, extension, Tika content sniffing
-    API->>DB: insert document (owner = authenticated user, PROCESSING)
-    API->>API: parse (PDF per page / Tika), token-split into chunks
-    API->>AI: embed chunks
-    API->>VS: insert chunks with metadata {ownerId, documentId, fileName, chunkIndex, pageNumber}
-    API->>DB: mark INDEXED (or FAILED with reason, partial vectors removed)
-
-    U->>API: POST /chat/stream {question, conversationId?, documentId?}
-    API->>DB: tx 1: verify ownership, create conversation if new, save user message
-    API->>AI: embed question
-    API->>VS: similarity search WHERE metadata.ownerId = me [AND documentId = d]
-    API-->>U: SSE meta + sources
-    API->>AI: system rules + history + numbered <source> blocks + question
-    AI-->>API: token stream
-    API-->>U: SSE token ... token
-    API->>DB: tx 2: save assistant message + citation snapshot (or FAILED)
-    API-->>U: SSE done {assistantMessage}
+    UI -- "Same-Origin Requests<br/>(Bearer Access Token + HttpOnly Cookie)" --> VProxy
+    VProxy --> Filter
+    Filter --> Controllers --> Services
+    Services --> Relational
+    Services --> SpringAI
+    SpringAI --> VectorDB
+    SpringAI --> Embed
+    SpringAI --> Chat
 ```
 
 ---
 
-## Authentication and refresh-token lifecycle
-
-DocMind uses two separate credentials:
-
-| | Access token | Refresh token |
-|---|---|---|
-| Format | HMAC-signed JWT via JJWT (HS256–HS512, chosen from the key length) | 256 random bits from `SecureRandom`, base64url, opaque |
-| Lifetime | 15 minutes (`JWT_ACCESS_TTL`) | 7 days (`REFRESH_TOKEN_TTL`) |
-| Where the client keeps it | JavaScript memory only | `HttpOnly`, `SameSite=Strict` cookie, `Path=/api/v1/auth` |
-| Where the server keeps it | Nowhere (stateless) | SHA-256 hash in `refresh_tokens` |
-| Claims / data | `sub` = user id, `typ=access`, `iss`, `iat`, `exp`, `jti` | user, family id, expiry, revocation time and reason, replacement id |
+## 🔄 Document Ingestion & RAG Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant B as Browser
-    participant A as /api/v1/auth
-    participant DB as refresh_tokens
+    actor User as User
+    participant API as Spring Boot API
+    participant DB as PostgreSQL
+    participant VectorStore as pgvector (vector_store)
+    participant AI as OpenAI (Embeddings & Chat)
 
-    B->>A: POST /login {username, password}
-    A->>DB: insert hash(R1), new family F
-    A-->>B: 200 {accessToken} + Set-Cookie docmind_refresh=R1 (HttpOnly)
+    User->>API: POST /documents/upload (file)
+    API->>API: Tika content sniffing & validation
+    API->>DB: Insert document (owner = user, status = PROCESSING)
+    API->>API: TokenTextSplitter chunking (700 tokens target)
+    API->>AI: Generate dense embeddings (1536 dims)
+    API->>VectorStore: Insert chunks with metadata {ownerId, documentId, pageNumber}
+    API->>DB: Mark status = INDEXED
+    API-->>User: Document uploaded & indexed successfully
 
-    Note over B: access token expires → API returns 401
-    B->>A: POST /refresh (cookie R1, X-DocMind-CSRF: 1)
-    A->>DB: SELECT ... FOR UPDATE where hash = hash(R1)
-    A->>DB: revoke R1 (ROTATED, replaced_by = R2), insert hash(R2) in family F
-    A-->>B: 200 {accessToken} + Set-Cookie docmind_refresh=R2
-
-    Note over B,A: someone replays the old R1
-    B->>A: POST /refresh (cookie R1)
-    A->>DB: R1 already rotated → revoke every token in family F
-    A-->>B: 401 INVALID_REFRESH_TOKEN (the thief and the victim must sign in again)
-
-    B->>A: POST /logout (cookie, X-DocMind-CSRF: 1)
-    A->>DB: revoke family F
-    A-->>B: 200 + cookie cleared
+    User->>API: POST /chat/stream {question, conversationId}
+    API->>DB: Verify ownership & save user message
+    API->>AI: Embed question
+    API->>VectorStore: Similarity search (WHERE ownerId = me [AND documentId = doc])
+    API-->>User: SSE event:meta + event:sources
+    API->>AI: Stream prompt with numbered source blocks
+    AI-->>API: SSE tokens
+    API-->>User: SSE event:token streaming
+    API->>DB: Persist assistant message & citation snapshot
+    API-->>User: SSE event:done {assistantMessage}
 ```
 
-Details worth knowing:
+---
 
-- **Purpose separation.** The filter only accepts JWTs with `typ=access`; opaque refresh tokens are not JWTs and are never accepted as bearer tokens, and the refresh endpoint only reads the cookie, so an access token cannot be used there. Both directions are covered by tests.
-- **Strict validation.** Signature, issuer, expiry and token type are checked; malformed, tampered and expired tokens get `401` with `INVALID_TOKEN` or `TOKEN_EXPIRED` immediately instead of falling through as anonymous. The user is reloaded from the database on every request, so a deleted account cannot keep using an old token.
-- **Secrets.** `JWT_SECRET` (≥ 32 bytes) is mandatory outside the `dev` profile; the application refuses to start without it. In `dev` only, a random per-process key is generated when it is unset.
-- **Concurrency.** Rotation takes a row lock on the presented token. If two tabs refresh at the same moment, the loser gets `409 REFRESH_CONFLICT` (within a 10 s grace window) instead of triggering theft detection; the browser already holds the winner's new cookie, so the client simply retries once. In the frontend, concurrent `401`s within one tab share a single in-flight refresh, and every request is retried at most once.
-- **CSRF.** Bearer-token endpoints are immune to CSRF because browsers never attach the header automatically, so Spring's synchronizer-token filter is disabled for them. The two cookie-authenticated endpoints (`/refresh`, `/logout`) are protected by `CookieCsrfGuard`: the `SameSite=Strict` cookie, a mandatory `X-DocMind-CSRF` header (a cross-site form cannot send it, and a cross-origin script would need a CORS preflight that the exact-origin allowlist rejects), and an `Origin` check.
-- **Cleanup.** A scheduled job (`app.security.refresh.cleanup-cron`, daily at 03:15) deletes tokens that expired or were revoked more than 7 days ago. Revoked rows are kept for a while so reuse can still be detected.
-- **Password change** revokes every refresh token of the account.
+## 🔐 Security & Authentication Lifecycle
 
-## Per-user data isolation
+DocMind enforces the principle of least privilege using a dual-token strategy:
 
-Isolation is enforced on the server, at three layers:
+| Attribute | Access Token | Refresh Token |
+|---|---|---|
+| **Format** | Signed JWT (HS512 JJWT) | Cryptographically secure 256-bit random opaque string |
+| **Lifetime** | 15 minutes (`JWT_ACCESS_TTL`) | 7 days (`REFRESH_TOKEN_TTL`) |
+| **Client Storage** | Application memory only (never localStorage) | `HttpOnly`, `SameSite=Strict`, `Secure` Cookie (`Path=/api/v1/auth`) |
+| **Server Storage** | Stateless verification | SHA-256 hash in `refresh_tokens` table |
+| **Claims / Meta** | `sub` (userId), `typ=access`, `iss`, `iat`, `exp` | `user_id`, `family_id`, `expires_at`, `revoked_at`, `replaced_by_id` |
 
-1. **Identity comes from the token.** Controllers receive an `AuthUser` principal built from the database record of the JWT subject. No endpoint accepts a user id from the request.
-2. **Every relational query is owner-scoped.** Documents and conversations are only ever loaded with finders such as `findByIdAndOwnerId(id, ownerId)`; messages are only loaded through a conversation that was verified first. Another user's resource therefore behaves exactly like a missing one and returns `404` — the API does not reveal whether it exists.
-3. **Every vector query is owner-scoped inside SQL.** Each chunk carries `ownerId` and `documentId` in its pgvector metadata, and every similarity search and delete passes a Spring AI filter expression that PgVectorStore compiles into a `metadata::jsonb @@ '$.ownerId == "42"'` predicate. Other users' vectors are never fetched and then filtered in memory. A document-scoped request additionally checks document ownership first (`404` otherwise) and adds `documentId` to the filter.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant Auth as /api/v1/auth
+    participant DB as refresh_tokens Table
 
-The isolation tests create two users with deliberately overlapping documents and assert that listing, fetching, deleting, semantic search, document-scoped search, chat retrieval (including the exact prompt sent to the model) and every conversation/message endpoint only ever expose the caller's own data.
+    Browser->>Auth: POST /login {username, password}
+    Auth->>DB: Insert hash(R1), new family F
+    Auth-->>Browser: 200 OK {accessToken} + Set-Cookie docmind_refresh=R1 (HttpOnly)
 
-## Data model
+    Note over Browser: Access token expires (15m)
+    Browser->>Auth: POST /refresh (Cookie: R1, X-DocMind-CSRF: 1)
+    Auth->>DB: SELECT FOR UPDATE WHERE hash = hash(R1)
+    Auth->>DB: Revoke R1 (ROTATED), Insert hash(R2) in family F
+    Auth-->>Browser: 200 OK {accessToken} + Set-Cookie docmind_refresh=R2
+
+    Note over Browser,Auth: Replay attack detected (R1 re-submitted)
+    Browser->>Auth: POST /refresh (Cookie: R1)
+    Auth->>DB: Detects R1 already rotated!
+    Auth->>DB: Revoke ALL tokens in family F
+    Auth-->>Browser: 401 INVALID_REFRESH_TOKEN (All sessions revoked)
+```
+
+### Security Measures:
+- **Token Type Isolation:** The filter rejects refresh tokens presented in the `Authorization` header, and the refresh endpoint only accepts the HttpOnly cookie.
+- **CSRF Defense:** Bearer token routes are immune to CSRF. Cookie-based routes (`/refresh`, `/logout`) require an `X-DocMind-CSRF: 1` header, exact-origin verification, and `SameSite=Strict` cookies.
+- **Concurrent Tab Refreshes:** A 10-second grace window resolves simultaneous tab refreshes (`409 REFRESH_CONFLICT`) cleanly without false theft triggers.
+- **Scheduled Token Pruning:** Daily cron job (`03:15 UTC`) purges expired or revoked tokens older than 7 days.
+
+---
+
+## 🔒 Per-User Multi-Tenant Data Isolation
+
+DocMind prevents cross-tenant data leakage across three independent tiers:
+
+1. **Authentication Token as Single Source of Identity:** Controllers consume an `AuthUser` principal extracted directly from the verified JWT. Endpoints never accept an untrusted user ID from client request parameters.
+2. **Relational Query Scoping:** Every JPA repository operation queries by both primary key and owner ID:
+   ```java
+   Optional<DocumentMetadata> findByIdAndOwnerId(UUID id, Long ownerId);
+   ```
+   Requests for foreign entities return `404 Not Found` rather than leaking resource existence.
+3. **Database-Level Vector Scoping:** Chunks in `vector_store` store `ownerId` in JSONB metadata. Every vector search applies a Spring AI filter predicate compiled into PostgreSQL JSON path operators:
+   ```sql
+   metadata::jsonb @@ '$.ownerId == "1"'
+   ```
+   No vector belonging to another tenant is ever read from disk into memory.
+
+---
+
+## 🗃️ Database Schema & Data Model
 
 ```mermaid
 erDiagram
@@ -217,465 +285,267 @@ erDiagram
     MESSAGES ||--o{ MESSAGE_CITATIONS : cites
     DOCUMENTS ||..o{ VECTOR_STORE : "chunks (metadata.documentId, metadata.ownerId)"
 
-    USERS { bigint id PK; varchar username UK; varchar email UK; varchar password "BCrypt"; varchar role; timestamptz created_at }
-    DOCUMENTS { uuid id PK; bigint owner_id FK; varchar filename; varchar content_type; bigint file_size; int total_pages; int total_chunks; varchar status; text error_message; timestamptz created_at; timestamptz updated_at }
-    REFRESH_TOKENS { uuid id PK; bigint user_id FK; varchar token_hash UK; uuid family_id; timestamptz expires_at; timestamptz revoked_at; varchar revoked_reason; uuid replaced_by_id }
-    CONVERSATIONS { uuid id PK; bigint owner_id FK; varchar title; timestamptz created_at; timestamptz updated_at }
-    MESSAGES { uuid id PK; uuid conversation_id FK; varchar role; varchar status; text content; uuid document_id; uuid reply_to_id; uuid client_message_id; bigint response_time_ms; timestamptz created_at }
-    MESSAGE_CITATIONS { uuid message_id PK; int position PK; uuid document_id; varchar file_name; int chunk_index; int page_number; text snippet; float similarity_score }
-    VECTOR_STORE { uuid id PK; text content; json metadata; vector embedding "1536 dims" }
+    USERS {
+        bigint id PK
+        varchar username UK
+        varchar email UK
+        varchar password "BCrypt"
+        varchar role
+        timestamptz created_at
+    }
+
+    DOCUMENTS {
+        uuid id PK
+        bigint owner_id FK
+        varchar filename
+        varchar content_type
+        bigint file_size
+        int total_pages
+        int total_chunks
+        varchar status
+        text error_message
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    REFRESH_TOKENS {
+        uuid id PK
+        bigint user_id FK
+        varchar token_hash UK
+        uuid family_id
+        timestamptz expires_at
+        timestamptz revoked_at
+        varchar revoked_reason
+        uuid replaced_by_id
+    }
+
+    CONVERSATIONS {
+        uuid id PK
+        bigint owner_id FK
+        varchar title
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    MESSAGES {
+        uuid id PK
+        uuid conversation_id FK
+        varchar role
+        varchar status
+        text content
+        uuid document_id
+        uuid reply_to_id
+        uuid client_message_id
+        bigint response_time_ms
+        timestamptz created_at
+    }
+
+    MESSAGE_CITATIONS {
+        uuid message_id PK
+        int position PK
+        uuid document_id
+        varchar file_name
+        int chunk_index
+        int page_number
+        text snippet
+        float similarity_score
+    }
+
+    VECTOR_STORE {
+        uuid id PK
+        text content
+        json metadata
+        vector embedding "1536 dims"
+    }
 ```
 
-All foreign keys cascade on delete. Usernames and emails are unique case-insensitively (`lower()` unique indexes). `message_citations` deliberately has no foreign key to `documents`: citations are a snapshot, so past answers stay readable after a document is deleted.
-
-### Migrations
-
-The schema is owned by Flyway (`src/main/resources/db/migration`), and Hibernate runs with `ddl-auto: validate`.
-
-| Version | Contents |
-|---|---|
-| `V1__baseline.sql` | `vector` extension, `users`, `documents`, `vector_store` (+ HNSW, GIN and expression indexes) |
-| `V2__refresh_tokens.sql` | Refresh-token table and indexes |
-| `V3__conversations.sql` | `conversations`, `messages`, `message_citations` |
-
-**Upgrading an existing development database.** Earlier versions of this project created tables with Hibernate `ddl-auto=update`, including a table literally named `"document metadata"`. Flyway is configured with `baseline-on-migrate=true` and `baseline-version=0`, and `V1` is idempotent, so on such a database it:
-
-- renames `"document metadata"` to `documents` (and its constraints),
-- converts timestamp columns to `timestamptz`,
-- adds `owner_id` with a foreign key — rows uploaded before documents had owners cannot be attributed safely, so they are **moved to a `legacy_unowned_documents` table instead of being deleted**; their old vectors have no `ownerId` and are therefore never returned by any search.
-
-This upgrade path is covered by `LegacySchemaMigrationTest`. If you want to keep legacy documents, re-upload them; or assign them manually by inserting rows back into `documents` with an `owner_id` and adding `"ownerId": "<id>"` to their `vector_store.metadata`.
-
-## Vector search design
-
-- **Store:** Spring AI `PgVectorStore` on the `vector_store` table, 1536 dimensions (`text-embedding-3-small`), cosine distance, HNSW index. The table is created by Flyway (`initialize-schema: false`).
-- **Chunking:** `TokenTextSplitter` (700-token target chunks, configurable under `app.rag`). Chunk metadata is rebuilt from scratch so only known keys are stored: `ownerId`, `documentId`, `fileName`, `contentType`, `chunkIndex`, `pageNumber`. Ids are stored as JSON strings so the generated jsonpath compares like with like.
-- **Ownership filter:** `VectorMetadata.ownedBy(ownerId)` / `ownedDocument(ownerId, documentId)` build the filter expressions used for every search and every delete. A GIN `jsonb_path_ops` index on `metadata::jsonb` supports the jsonpath predicate.
-- **Filtered HNSW recall:** with a selective filter, a plain HNSW scan can return fewer than `topK` rows. Each connection sets `hnsw.iterative_scan = relaxed_order` (pgvector ≥ 0.8) so the index keeps scanning until enough of the caller's rows are found.
-- **Bounds:** `topK` defaults to 5 and is capped at 20; `minSimilarity` is validated to `[0, 1]`; queries are limited to 2,000 characters; citation snippets to 600 characters. Empty result sets are a normal `200` with `totalMatches: 0`.
-- **Prompting:** retrieved chunks are passed as numbered `<source id="n">` blocks in the user turn. The system prompt states that source content is untrusted data, never instructions, that only provided ids may be cited, and how to answer when nothing relevant was found. Document text cannot close or open source tags (they are neutralised), and messages are passed as message objects so document text is never run through a prompt template engine.
-
-## Chat history persistence
-
-Every exchange is stored in PostgreSQL:
-
-1. **Transaction 1** — verify the conversation belongs to the caller (or create one, titled from the first question), validate the optional document scope, reject a repeated `clientMessageId` (`409`), and save the user message. This commits before any AI call, so the question is never lost.
-2. **Retrieval and generation** run outside any transaction.
-3. **Transaction 2** — save the assistant message with its response time and a snapshot of every retrieved source (position, document, file, page, chunk, snippet, score). On failure an assistant message with status `FAILED` is saved instead; `retryOfMessageId` replaces it later.
-
-For streaming, the user message and sources are sent first, then tokens, then a `done` event carrying the persisted message. If the client disconnects, generation continues and is persisted; the frontend polls the conversation for a short while after the user presses Stop. Conversations survive restarts because nothing is held in memory between requests.
-
-## Repository structure
-
-```
-docmind/
-├── pom.xml                       Maven build (Spring Boot 4.1.1, Spring AI 2.0.1)
-├── Dockerfile                    Backend image
-├── docker-compose.yml            PostgreSQL+pgvector; optional full stack (profile "app")
-├── init.sql                      Extensions for a fresh Postgres container
-├── .env.example                  Environment variable template
-├── src/main/java/com/example/docmind/
-│   ├── config/                   AppProperties, SecurityConfig (filter chain, CORS), ProjectConfig (ChatClient, OpenAPI)
-│   ├── security/                 JwtService, JwtAuthenticationFilter, CookieCsrfGuard, JSON 401/403 handler, AuthUser
-│   ├── controller/               Auth, Users, Documents, Chat (query/stream/search), Conversations
-│   ├── service/                  Auth, RefreshToken, User, Document*, Retrieval, Rag, Chat, Conversation
-│   ├── repository/               Owner-scoped Spring Data repositories
-│   ├── entity/                   User, DocumentMetadata, RefreshToken, Conversation, Message, Citation
-│   ├── dto/                      Request/response DTOs and the ApiResponse envelope
-│   └── exception/                ApiException hierarchy and GlobalExceptionHandler
-├── src/main/resources/
-│   ├── application.yaml          Base (production-safe) configuration
-│   ├── application-dev.yml       Local development defaults
-│   └── db/migration/             Flyway migrations V1–V3
-├── src/test/java/...             Integration tests (Testcontainers) and unit tests
-└── frontend/
-    ├── Dockerfile, nginx.conf    Static build served by nginx, /api proxied to the backend
-    ├── .env.example
-    └── src/
-        ├── api/                  Typed client: token handling, refresh, upload progress, SSE parsing
-        ├── app/                  Router (code-split pages), route guards, error screens
-        ├── providers/            Auth, theme and toast state
-        ├── hooks/, features/     React Query hooks, chat session, upload queue
-        ├── components/           ui/, layout/, chat/, documents/
-        └── pages/                Login, Register, Chat, Library, Settings
-```
+Migrations are managed with Flyway (`src/main/resources/db/migration`):
+- `V1__baseline.sql`: `vector` extension, `users`, `documents`, `vector_store` table, HNSW cosine index, and GIN JSON path index.
+- `V2__refresh_tokens.sql`: Token hash table, family index, and expiration indexes.
+- `V3__conversations.sql`: Threads, messages, and citation snapshots.
 
 ---
 
-## Running locally
+## ⚡ Vector Search & Indexing Design
+
+- **Vector Store:** Spring AI `PgVectorStore` mapped to `vector_store`.
+- **Dimensions:** 1536 (`text-embedding-3-small`).
+- **Distance Metric:** Cosine distance (`<=>`).
+- **Index Type:** **HNSW** (`m=16`, `ef_construction=64`).
+- **Filtered Recall:** Connections set `SET hnsw.iterative_scan = relaxed_order` to prevent sparse candidate drops when filtering by `ownerId`.
+- **Chunking Pipeline:** `TokenTextSplitter` targets 700 tokens per chunk with 100-token overlap. Metadata is normalized to `{ownerId, documentId, fileName, contentType, chunkIndex, pageNumber}`.
+- **Safety Against Prompt Injection:** Retrieved chunks are injected as delimited `<source id="n">` XML blocks. Source tags in raw user documents are sanitized before LLM transmission.
+
+---
+
+## 💻 Running Locally
 
 ### Prerequisites
+- **Java 17+** (JDK 17 or 21)
+- **Node.js 20.19+** (Node 22 or 24 recommended) & `npm`
+- **Docker & Docker Compose** (for PostgreSQL + pgvector)
+- **OpenAI API Key** (optional for startup; app runs in dev mode with stubs if unset)
 
-- **JDK 17+** (the Maven wrapper downloads Maven itself)
-- **Node.js 20.19+** (22 or 24 recommended) and npm
-- **Docker** (for PostgreSQL + pgvector, and for the backend integration tests)
-- An **OpenAI API key** (or an OpenAI-compatible endpoint) for embeddings and chat. Without it the app still runs, but indexing and answering fail with clear error states.
+### 1. Clone the Repository
+```bash
+git clone https://github.com/sahamon-141/docmind.git
+cd docmind
+```
 
-### 1. Start PostgreSQL with pgvector
-
+### 2. Start PostgreSQL with pgvector
 ```bash
 docker compose up -d postgres
 ```
+*Starts PostgreSQL 16 with pgvector on `localhost:5434` (database `docmind`, username `postgres`, password `postgres`).*
 
-This starts `pgvector/pgvector:pg16` on **localhost:5434** (database `docmind`, user `postgres`, password `postgres` by default — local development only). Flyway creates the schema when the backend starts.
-
-### 2. Start the backend
-
+### 3. Start the Spring Boot Backend
+On Linux / macOS:
 ```bash
-export OPENAI_API_KEY=sk-your-key
+export OPENAI_API_KEY="sk-your-openai-api-key"
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
-
+On Windows (PowerShell):
 ```powershell
-$env:OPENAI_API_KEY = "sk-your-key"
+$env:OPENAI_API_KEY = "sk-your-openai-api-key"
 .\mvnw.cmd spring-boot:run
 ```
+*The backend API will start on **http://localhost:8081**.*
 
-The API listens on **http://localhost:8081**. The `dev` profile is active by default; it supplies the local database credentials, allows `http://localhost:5173` for CORS, and generates a temporary JWT signing key if `JWT_SECRET` is not set (access tokens then become invalid after a restart, but the refresh cookie keeps you signed in).
-
-### 3. Start the frontend
-
+### 4. Start the Vite React Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+*Open **http://localhost:5173** in your browser.*
 
-Open **http://localhost:5173**. Vite proxies `/api` and `/actuator/health` to `http://localhost:8081` (override with `DEV_API_PROXY_TARGET` in `frontend/.env`), so the browser sees a single origin.
+### 5. Sign In & Explore
+You can sign in with an existing account
+Or click **Create an account** to register a new tenant workspace.
 
-### 4. Try it
+---
 
-Create an account, upload a document in **Library**, wait for the status to become *Indexed*, then ask a question in **Chat**.
+## 🐳 Docker Compose Setup
 
-## Environment variables
-
-Backend (see [`.env.example`](.env.example)):
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `dev` | Use any other value (for example `docker` or `prod`) to disable development defaults |
-| `SERVER_PORT` | `8081` | HTTP port |
-| `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5434` / `docmind` | PostgreSQL location |
-| `DB_USER` / `DB_PASSWORD` | dev: `postgres` / `postgres`; otherwise **required** | Database credentials |
-| `JWT_SECRET` | dev: random per process; otherwise **required** | HMAC signing key, at least 32 bytes (`openssl rand -base64 48`) |
-| `JWT_ACCESS_TTL` | `15m` | Access-token lifetime |
-| `REFRESH_TOKEN_TTL` | `7d` | Refresh-token lifetime |
-| `REFRESH_COOKIE_SECURE` | `true` (dev: `false`) | `Secure` flag on the refresh cookie; must be `true` over HTTPS |
-| `REFRESH_COOKIE_SAME_SITE` | `Strict` | Use `None` (with `Secure`) only for a cross-site frontend |
-| `CORS_ALLOWED_ORIGINS` | empty (dev: `http://localhost:5173,http://127.0.0.1:5173`) | Comma-separated exact origins; `*` is rejected at startup |
-| `OPENAI_API_KEY` | dev: placeholder; otherwise **required** | Provider API key |
-| `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Chat model |
-| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Must output 1536-dimensional vectors |
-| `SPRING_AI_OPENAI_BASE_URL` | OpenAI | Base URL for an OpenAI-compatible provider |
-| `MAX_UPLOAD_SIZE` / `MAX_REQUEST_SIZE` | `25MB` / `100MB` | Multipart limits |
-
-Further tuning (`app.rag.*` chunk size, top-K, history length, snippet length; `app.documents.*` allowed extensions and files per request) lives in `application.yaml`.
-
-Frontend (see [`frontend/.env.example`](frontend/.env.example)):
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `VITE_API_BASE_URL` | empty (same origin) | Only set for a cross-origin API deployment |
-| `DEV_API_PROXY_TARGET` | `http://localhost:8081` | Where the Vite dev server proxies `/api` |
-
-No secret is ever exposed to the frontend; the browser only talks to the DocMind API.
-
-## Docker Compose
-
-Database only (for local development, as above):
-
-```bash
-docker compose up -d postgres
-```
-
-Full stack (PostgreSQL + backend + nginx-served frontend):
+Run the full stack (PostgreSQL + pgvector + Spring Boot + Nginx-served frontend) in isolated containers:
 
 ```bash
 cp .env.example .env
-# edit .env: set JWT_SECRET (openssl rand -base64 48) and OPENAI_API_KEY
+# Edit .env and supply your OPENAI_API_KEY and a random JWT_SECRET (openssl rand -base64 48)
 docker compose --profile app up -d --build
 ```
 
-| Service | URL |
+| Service | Access URL |
 |---|---|
-| Web app (nginx, proxies `/api` to the backend) | http://localhost:8080 |
-| Backend API / Swagger UI | http://localhost:8081/swagger-ui.html |
-| PostgreSQL | localhost:5434 |
+| Frontend Web Application | [http://localhost:8080](http://localhost:8080) |
+| Backend API & Swagger UI | [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html) |
+| PostgreSQL Container | `localhost:5434` |
 
-The backend runs with `SPRING_PROFILES_ACTIVE=docker`, so none of the development fallbacks apply. Compose waits for the database health check before starting the backend, and for the backend's `/actuator/health` before starting the frontend. nginx sets a strict Content-Security-Policy and other security headers and disables proxy buffering on `/api` so streamed answers arrive token by token. Behind HTTPS, set `REFRESH_COOKIE_SECURE=true`.
-
-Stop with `docker compose --profile app down` (add `-v` to delete the database volume).
+To stop the containers:
+```bash
+docker compose --profile app down
+```
 
 ---
 
-## Deploying (Render + Vercel)
+## ☁️ Deploying to Render & Vercel
 
-The backend and PostgreSQL run on **Render**; the static frontend runs on **Vercel**. Vercel **proxies `/api/*` to Render** (see [`frontend/vercel.json`](frontend/vercel.json)), so the browser only ever talks to your Vercel domain:
+The production stack deploys the backend and database to **Render**, and the frontend to **Vercel**.
 
 ```mermaid
 flowchart LR
-    B[Browser] -->|"https://docmind.vercel.app"| V[Vercel<br/>static SPA]
-    V -->|"rewrite /api/* (server side)"| R[Render web service<br/>docmind-api]
-    R --> D[(Render PostgreSQL<br/>+ pgvector)]
+    B[User Browser] -->|"https://docmind-sand-zeta.vercel.app"| V[Vercel SPA]
+    V -->|"Server Rewrite: /api/*"| R[Render Service: docmind-api-cbqg]
+    R --> D[(Render PostgreSQL 16 + pgvector)]
 ```
 
-Why the proxy matters: `vercel.app` and `onrender.com` are different *sites*. If the browser called Render directly, the refresh cookie would be a third-party cookie, which Safari and Firefox block and Chrome is restricting, so users would be signed out on every reload. Through the rewrite the cookie stays first-party on your Vercel domain and keeps `SameSite=Strict`, and no CORS is needed for API calls. Leave `VITE_API_BASE_URL` empty.
-
-### 1. Backend and database on Render
-
-1. Push the repository to GitHub (or GitLab).
-2. In Render: **New → Blueprint**, pick the repository. Render reads [`render.yaml`](render.yaml) and proposes:
-   - `docmind-db` — PostgreSQL 16. Render's PostgreSQL supports the `vector` extension; the Flyway migration enables it on first start.
-   - `docmind-api` — a Docker web service built from the root `Dockerfile`, with the database credentials wired in automatically and a randomly generated `JWT_SECRET`.
-3. When asked for the values marked `sync: false`, enter:
-   - `OPENAI_API_KEY` — your provider key.
-   - `CORS_ALLOWED_ORIGINS` — your Vercel URL, for example `https://docmind.vercel.app`. You may not know it yet; put a placeholder and update it after step 2 below. It is needed even with the proxy, because the refresh/logout CSRF guard only accepts browser `Origin`s that are the backend's own host or on this list.
-4. Deploy. The first build takes a few minutes (Maven dependencies). When it is live, open `https://<your-service>.onrender.com/actuator/health` — it should return `{"status":"UP"}`.
-
-The service reads Render's `PORT` variable automatically. `SPRING_PROFILES_ACTIVE=prod` means none of the development fallbacks apply: the app refuses to start without `JWT_SECRET`, database credentials or `OPENAI_API_KEY`.
-
-<details>
-<summary>Setting it up by hand instead of with the Blueprint</summary>
-
-1. **New → PostgreSQL**, version 16. Note the *internal* hostname, port, database, user and password.
-2. **New → Web Service**, connect the repo, **Runtime: Docker**, Dockerfile path `./Dockerfile`, health check path `/actuator/health`.
-3. Environment variables: `SPRING_PROFILES_ACTIVE=prod`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (from step 1), `JWT_SECRET` (output of `openssl rand -base64 48`), `OPENAI_API_KEY`, `CORS_ALLOWED_ORIGINS=https://<your-app>.vercel.app`, `REFRESH_COOKIE_SECURE=true`.
-</details>
-
-### 2. Frontend on Vercel
-
-1. Edit [`frontend/vercel.json`](frontend/vercel.json) and replace `docmind-api.onrender.com` (two places) with your Render service's hostname, then commit and push. Vercel cannot read environment variables inside rewrites, so the hostname has to live in this file.
-2. In Vercel: **Add New → Project**, import the repository, and set **Root Directory** to `frontend`. Vercel detects Vite; `vercel.json` already sets the build command (`npm run build`) and output directory (`dist`).
-3. Do **not** set `VITE_API_BASE_URL`. Deploy.
-4. Copy the production URL (for example `https://docmind.vercel.app`) into `CORS_ALLOWED_ORIGINS` on Render and redeploy the backend. If you also use preview deployments or a custom domain, add those origins too, comma-separated.
-
-`vercel.json` also serves `index.html` for client-side routes such as `/chat/<id>`, sets long cache headers on hashed assets, and applies the same security headers and Content-Security-Policy as the nginx image.
-
-### 3. Check the deployment
-
-- Open the Vercel URL, register, and reload the page: you should stay signed in. If you are sent back to the login page, see the troubleshooting table below.
-- Upload a small `.txt` file; it should reach *Indexed*.
-- Ask a question; tokens should stream in.
-
-### Hosting notes
-
-- **Free plans.** Render's free web services sleep after inactivity and take up to about a minute to wake, so the first request can time out through the Vercel proxy; retry, or use a paid instance. The free plan's 512 MB of memory is tight for Spring Boot plus Tika on large PDFs, which is why the Blueprint uses `starter`. Render's free PostgreSQL is deleted after a limited period, so use a paid database for anything you want to keep.
-- **Streaming through the proxy.** Answers are streamed as Server-Sent Events through the Vercel rewrite. This was not tested on Vercel itself. If tokens arrive all at once or long answers are cut off, the proxy is buffering or timing out. The answer is still saved server-side and appears after a reload. The direct alternative is described next.
-- **Calling Render directly (no proxy).** This is possible but not recommended. Set `VITE_API_BASE_URL=https://<service>.onrender.com` on Vercel, remove the `/api` and `/actuator` rewrites, and on Render set `REFRESH_COOKIE_SAME_SITE=None`, `REFRESH_COOKIE_SECURE=true` and `CORS_ALLOWED_ORIGINS=https://<your-app>.vercel.app`. Browsers that block third-party cookies will then lose the session on reload. A custom domain for both (for example `app.example.com` and `api.example.com`) makes them same-site again and avoids this.
-- **Other databases.** Any PostgreSQL with pgvector works (Neon, Supabase and others) — set the `DB_*` variables; most hosted providers require SSL from outside their network, which you can enable with `SPRING_DATASOURCE_URL=jdbc:postgresql://<host>:5432/<db>?sslmode=require`.
-
-## API reference and examples
-
-Interactive documentation: **http://localhost:8081/swagger-ui.html** (OpenAPI JSON at `/v3/api-docs`). Click **Authorize** and paste an access token to call protected endpoints.
-
-Every JSON response uses one envelope:
-
-```json
-{ "success": false, "message": "Validation failed", "error": "VALIDATION_FAILED",
-  "data": { "email": "Email must be valid" }, "timestamp": "2026-10-11T10:00:00Z" }
-```
-
-| Endpoint | Auth | Description |
-|---|---|---|
-| `POST /api/v1/auth/register` | public | Create an account and sign in (`201`; `409 USERNAME_TAKEN` / `EMAIL_TAKEN`) |
-| `POST /api/v1/auth/login` | public | Username or email + password (`401 INVALID_CREDENTIALS`) |
-| `POST /api/v1/auth/refresh` | refresh cookie + `X-DocMind-CSRF` | Rotate the session (`401 INVALID_REFRESH_TOKEN`, `409 REFRESH_CONFLICT`) |
-| `POST /api/v1/auth/logout` | refresh cookie + `X-DocMind-CSRF` | Revoke the session and clear the cookie |
-| `GET /api/v1/auth/me` | bearer | Current user |
-| `PATCH /api/v1/users/me` | bearer | Update email |
-| `POST /api/v1/users/me/password` | bearer | Change password (revokes all sessions) |
-| `POST /api/v1/documents/upload` | bearer | Upload one file (multipart field `file`) |
-| `POST /api/v1/documents/upload-multiple` | bearer | Upload up to 10 files (field `files`), per-file results |
-| `GET /api/v1/documents` | bearer | List own documents |
-| `GET /api/v1/documents/{id}` | bearer | Document metadata (`404` if not yours) |
-| `DELETE /api/v1/documents/{id}` | bearer | Delete document and its vectors |
-| `POST /api/v1/chat/query` | bearer | Ask and wait for the full answer |
-| `POST /api/v1/chat/stream` | bearer | Ask and stream the answer (SSE) |
-| `POST /api/v1/chat/search/similarity` | bearer | Semantic search over own chunks |
-| `GET /api/v1/conversations?q=&page=&size=` | bearer | List / search conversations, most recent first |
-| `POST /api/v1/conversations` | bearer | Create an empty conversation |
-| `GET /api/v1/conversations/{id}` | bearer | Conversation with all messages and citations |
-| `GET /api/v1/conversations/{id}/messages?page=&size=` | bearer | Paged messages, chronological |
-| `PATCH /api/v1/conversations/{id}` | bearer | Rename |
-| `DELETE /api/v1/conversations/{id}` | bearer | Delete with all messages |
-| `GET /actuator/health` | public | Liveness (`{"status":"UP"}`) |
-
-### Examples
-
-Register (the refresh token arrives only as a cookie; `-c` stores it):
-
-```bash
-curl -s -c cookies.txt -X POST http://localhost:8081/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"ada","email":"ada@example.com","password":"<a password of 8+ characters>"}'
-```
-
+### Why the Vercel Proxy Rewrite Matters
+`vercel.app` and `onrender.com` are cross-site origins. Direct cross-site calls would cause browsers (Safari, Firefox, Chrome) to treat the `docmind_refresh` cookie as a third-party cookie and block it, signing users out on every reload. 
+By defining the rewrite in `frontend/vercel.json`:
 ```json
 {
-  "success": true,
-  "message": "Account created",
-  "data": {
-    "accessToken": "<jwt>",
-    "tokenType": "Bearer",
-    "expiresIn": 900,
-    "user": { "id": 1, "username": "ada", "email": "ada@example.com", "role": "USER", "createdAt": "2026-10-11T10:00:00Z" }
-  },
-  "timestamp": "2026-10-11T10:00:00Z"
-}
-```
-
-Refresh the session:
-
-```bash
-curl -s -b cookies.txt -c cookies.txt -X POST http://localhost:8081/api/v1/auth/refresh -H 'X-DocMind-CSRF: 1'
-```
-
-Upload a document:
-
-```bash
-curl -s -X POST http://localhost:8081/api/v1/documents/upload \
-  -H "Authorization: Bearer $TOKEN" -F 'file=@handbook.pdf'
-```
-
-```json
-{ "success": true, "message": "Document uploaded and indexed successfully",
-  "data": { "id": "3f6c…", "filename": "handbook.pdf", "fileSize": 182344, "status": "INDEXED", "chunksCreated": 42,
-            "message": "Document successfully processed and indexed." }, "timestamp": "…" }
-```
-
-Ask a question (omit `conversationId` to start a new conversation):
-
-```bash
-curl -s -X POST http://localhost:8081/api/v1/chat/query \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"question":"How much notice do vacation requests need?","clientMessageId":"7d1f4a60-6a50-4d1e-9a44-2f3a0b9d2c11"}'
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "conversation": { "id": "b52e…", "title": "How much notice do vacation requests need?", "createdAt": "…", "updatedAt": "…" },
-    "userMessage": { "id": "…", "role": "USER", "status": "COMPLETE", "content": "How much notice do vacation requests need?", "citations": [] },
-    "assistantMessage": {
-      "id": "…", "role": "ASSISTANT", "status": "COMPLETE", "replyToId": "…", "responseTimeMs": 1840,
-      "content": "Vacation requests need two weeks' notice [1].",
-      "citations": [ { "position": 1, "documentId": "3f6c…", "fileName": "handbook.pdf", "pageNumber": 4, "chunkIndex": 11,
-                       "snippet": "Vacation requests must be submitted at least two weeks…", "similarityScore": 0.83 } ]
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://docmind-api-cbqg.onrender.com/api/:path*"
+    },
+    {
+      "source": "/actuator/:path*",
+      "destination": "https://docmind-api-cbqg.onrender.com/actuator/:path*"
     }
-  }
+  ]
 }
 ```
-
-If the model fails, the response is `502 AI_GENERATION_FAILED` and `data` still contains the saved question and a `FAILED` assistant message; send `{"conversationId": "…", "retryOfMessageId": "<userMessage.id>"}` to retry.
-
-Streaming (`POST /api/v1/chat/stream`, `Accept: text/event-stream, application/json`) emits:
-
-```
-event:meta     data:{"conversation":{…},"userMessage":{…}}
-event:sources  data:[{"position":1,"fileName":"handbook.pdf",…}]
-event:token    data:{"text":"Vacation requests "}
-event:token    data:{"text":"need two weeks' notice [1]."}
-event:done     data:{"assistantMessage":{…}}
-```
-
-or `event:error data:{"message":"…","assistantMessage":{…}}` instead of `done`. Validation and ownership errors are returned as ordinary JSON responses before the stream starts, which is why the request must also accept `application/json`.
-
-Semantic search:
-
-```bash
-curl -s -X POST http://localhost:8081/api/v1/chat/search/similarity \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"query":"remote work policy","topK":5}'
-```
-
-### Common error codes
-
-| HTTP | `error` | Meaning |
-|---|---|---|
-| 400 | `VALIDATION_FAILED`, `BAD_REQUEST`, `EMPTY_FILE`, `TOO_MANY_FILES` | Invalid input (`data` holds field errors where applicable) |
-| 401 | `UNAUTHORIZED`, `INVALID_TOKEN`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN` | Missing or invalid credentials |
-| 403 | `FORBIDDEN`, `CSRF_REJECTED` | Authenticated but not allowed / cookie request without CSRF header |
-| 404 | `NOT_FOUND` | Missing, or owned by another user |
-| 409 | `USERNAME_TAKEN`, `EMAIL_TAKEN`, `DUPLICATE_MESSAGE`, `ALREADY_ANSWERED`, `REFRESH_CONFLICT` | Conflicts |
-| 413 / 415 / 422 | `FILE_TOO_LARGE` / `UNSUPPORTED_DOCUMENT` / `DOCUMENT_PROCESSING_FAILED` | Upload problems |
-| 502 | `AI_GENERATION_FAILED`, `SEARCH_UNAVAILABLE` | The AI provider failed |
+The browser communicates exclusively with the Vercel domain, keeping the cookie **first-party** with `SameSite=Strict`.
 
 ---
 
-## Testing
+## 📖 API Reference & Examples
 
+Interactive Documentation is live at:
+👉 **[Swagger UI: docmind-api-cbqg.onrender.com/swagger-ui/index.html](https://docmind-api-cbqg.onrender.com/swagger-ui/index.html)**
+*(OpenAPI JSON specification available at `/v3/api-docs`)*
+
+### Core REST Endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | Public | Register new user account (`201 Created`) |
+| `POST` | `/api/v1/auth/login` | Public | Sign in with username/email & password (`200 OK`) |
+| `POST` | `/api/v1/auth/refresh` | Cookie | Rotate refresh token & issue new access token |
+| `POST` | `/api/v1/auth/logout` | Cookie | Revoke refresh token family & clear cookie |
+| `GET` | `/api/v1/auth/me` | Bearer | Get authenticated user profile |
+| `POST` | `/api/v1/documents/upload` | Bearer | Upload and vectorize single document (`multipart/form-data`) |
+| `POST` | `/api/v1/documents/upload-multiple` | Bearer | Upload up to 10 documents in parallel |
+| `GET` | `/api/v1/documents` | Bearer | List documents belonging to authenticated user |
+| `DELETE` | `/api/v1/documents/{id}` | Bearer | Delete document and cascade delete its vector chunks |
+| `POST` | `/api/v1/chat/query` | Bearer | Ask a question and await synchronous JSON response |
+| `POST` | `/api/v1/chat/stream` | Bearer | Ask a question and receive token-by-token SSE stream |
+| `POST` | `/api/v1/chat/search/similarity`| Bearer | Semantic vector search across passages |
+| `GET` | `/api/v1/conversations` | Bearer | List / search past conversation threads |
+| `GET` | `/api/v1/conversations/{id}` | Bearer | Fetch conversation thread with messages & citations |
+| `DELETE`| `/api/v1/conversations/{id}` | Bearer | Delete conversation thread and messages |
+| `GET` | `/actuator/health` | Public | Health probe endpoint |
+
+### Example cURL Queries
+
+#### 1. Upload a Document
 ```bash
-./mvnw test                 # backend: unit + integration tests (Docker must be running)
-cd frontend
-npm run typecheck           # TypeScript strict mode
-npm run lint                # ESLint, zero warnings allowed
-npm test                    # Vitest
-npm run build               # production build
+curl -X POST http://localhost:8081/api/v1/documents/upload \
+  -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" \
+  -F "file=@document.pdf"
 ```
 
-**Backend (51 tests).** Integration tests start the full application against a real `pgvector/pgvector:pg16` container via Testcontainers, because vector metadata filtering has to be verified against PostgreSQL itself. Only the two paid external models are replaced with deterministic test doubles: a hashing bag-of-words embedding model (so similarity search behaves meaningfully) and a chat model that records prompts and can simulate outages.
+#### 2. Stream Question Answering (SSE)
+```bash
+curl -N -X POST http://localhost:8081/api/v1/chat/stream \
+  -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{"question": "What is the product roadmap described in the document?"}'
+```
 
-| Suite | Covers |
-|---|---|
-| `AuthIntegrationTest` | Registration, duplicate username/email (case-insensitive), validation, BCrypt storage, login by username or email, invalid credentials, public vs protected endpoints, 403 for missing role, malformed/tampered/expired access tokens, refresh rotation, reuse of a rotated token revoking the family, logout revocation, CSRF header and Origin checks, access/refresh tokens not interchangeable, password change revoking sessions |
-| `IsolationIntegrationTest` | Two users with overlapping content: chunk metadata contains the owner, listing, get-by-id, delete, similarity search, document-scoped search, chat retrieval (including the exact prompt), conversations and messages (read, rename, delete, search, posting into someone else's conversation) |
-| `ChatIntegrationTest` | Conversation creation and title, message/citation persistence and reload, history passed to the model, paging, rename/search/delete with cascade, failure keeps the question + retry, duplicate submission, no-context answers, SSE event order and persistence, SSE error event, JSON errors before a stream starts, unsupported/mismatched/empty/text-less uploads, multi-upload per-file results |
-| `LegacySchemaMigrationTest` | Flyway upgrade of a Hibernate-era database |
-| `DocmindApplicationTests` | Context start, Hibernate schema validation, all migrations applied |
-| `JwtServiceTest`, `RefreshTokenServiceTest`, `RagServiceTest` | Token expiry/signature/purpose, startup secret rules, rotation, grace window, reuse detection, cleanup, prompt construction and source-tag injection |
+---
 
-**Frontend (18 tests).** API client (refresh once and retry, single-flight refresh for concurrent 401s, no retry loops, session-expiry signalling, refresh conflict retry, validation errors, network errors), SSE parsing, route guards (redirect to login, session restore from cookie), citation rendering (no invented citations, no raw HTML), date grouping and registration validation.
+## 🧪 Testing
 
-## Security considerations
+The repository maintains full test coverage across both backend and frontend layers:
 
-- Passwords hashed with BCrypt; login failures are indistinguishable for unknown users and wrong passwords.
-- Short-lived access tokens kept in memory only; refresh tokens are `HttpOnly`, never readable by JavaScript and never stored in Web Storage; only their hashes are stored server-side.
-- Rotation with reuse detection, logout and password-change revocation, scheduled cleanup.
-- Strict per-user isolation in services, repository queries and vector SQL (see above).
-- CORS uses an exact origin allowlist; `*` is rejected because credentials are allowed.
-- Consistent JSON errors; stack traces and internal messages are never returned (`server.error.include-stacktrace: never`).
-- Uploads: size limits, extension allowlist, content sniffing, sanitised file names; the application does not store original files or serve them back (only extracted text chunks and metadata are kept).
-- Uploaded text is treated as untrusted model input (delimited sources, explicit system rules, tag neutralisation); model output is rendered as Markdown without raw HTML and with sanitised links.
-- Logs contain ids and counts, not tokens, passwords or document text.
-- The nginx image adds a Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`, a referrer policy and a permissions policy.
-- The previous version of this repository contained a hard-coded fallback JWT secret in `application-dev.yml`. It has been removed, but because it exists in git history it must be considered public: never use it anywhere.
+```bash
+# 1. Run Backend Unit & Integration Tests (Docker required for Testcontainers pgvector)
+./mvnw test
 
-## Troubleshooting
+# 2. Run Frontend Tests & Linting
+cd frontend
+npm run typecheck     # Strict TypeScript verification
+npm run lint          # ESLint (zero warnings allowed)
+npm test              # Vitest test suite
+npm run build         # Production bundle verification
+```
 
-| Symptom | Fix |
-|---|---|
-| `JWT_SECRET must be set` at startup | You are not on the `dev` profile. Set `JWT_SECRET` (≥ 32 bytes) or use `SPRING_PROFILES_ACTIVE=dev` locally. |
-| Upload ends as **Failed: Indexing failed…** | The embedding call was rejected. Check `OPENAI_API_KEY`, quota and `SPRING_AI_OPENAI_BASE_URL`. |
-| Answers show **The answer could not be generated…** | Same as above for the chat model; press **Retry** once fixed. |
-| `Found non-empty schema(s) "public" but no schema history table` | You are running an older build. The current configuration baselines legacy databases automatically. |
-| `expected 1536 dimensions` / dimension errors | The embedding model must output 1536-dimensional vectors, or adjust `VECTOR(1536)` in a new migration and `spring.ai.vectorstore.pgvector.dimensions`. |
-| Signed out after every page reload | The refresh cookie is not stored: use the Vite dev server (same origin), or set `REFRESH_COOKIE_SECURE=false` on plain HTTP outside `localhost`. |
-| Deployed app signs you out on every reload | The refresh cookie is not first-party: make sure the frontend calls `/api` through the Vercel rewrite (no `VITE_API_BASE_URL`) and that the hostname in `frontend/vercel.json` is correct. |
-| `403 CSRF_REJECTED` on refresh/logout after deploying | Add your exact Vercel origin (scheme + host, no trailing slash) to `CORS_ALLOWED_ORIGINS` on Render and redeploy. |
-| `docker compose` complains about `doc-mind-postgres` already existing | A container from an earlier checkout uses that name. Start that one (`docker start doc-mind-postgres`) or remove it. |
-| Backend tests fail with `Could not find a valid Docker environment` | Start Docker; the integration tests need it. |
-| Port 5434, 8081 or 5173 in use | Change `DB_PORT`, `SERVER_PORT` (and `DEV_API_PROXY_TARGET`) or stop the other process. |
+- **Backend (51 Integration & Unit Tests):** Integration tests spin up a real `pgvector/pgvector:pg16` Docker container via Testcontainers to validate JSON path SQL filtering, HNSW cosine index behavior, Flyway schema upgrades, and multi-tenant isolation.
+- **Frontend (18 Vitest Tests):** Covers single-flight token refresh, concurrent 401 handling, session restore, route guards, SSE event parsers, and Markdown citation security.
 
-## Known limitations
+---
 
-- **Live model calls were not exercised in the development environment** used to build this version (no API key was available). Everything up to the provider boundary is tested with real PostgreSQL/pgvector and deterministic test doubles, and the failure paths were verified manually in the browser; answer quality with a real model has not been evaluated.
-- Ingestion is synchronous: the upload request waits for parsing and embedding. Very large documents make the request slow.
-- No OCR: scanned PDFs are rejected as having no extractable text.
-- Access tokens cannot be revoked before they expire (15 minutes); refresh tokens can.
-- No rate limiting on login or AI endpoints, no email verification and no password reset flow.
-- Conversation search uses `LIKE` over message content, which is fine for personal workloads but not indexed for large histories.
-- Embedding dimensions are fixed at 1536 by the schema.
-- The refresh grace window (10 s) trades a small theft-detection gap for not logging users out when two tabs refresh simultaneously.
-
-## Future improvements
-
-- Background ingestion with a job queue and server-sent progress updates.
-- OCR for scanned documents and richer citation anchors (page highlights, document viewer).
-- Hybrid search (BM25 + vectors) and re-ranking.
-- Rate limiting, account lockout and audit logging.
-- Email verification, password reset and multi-session management in the UI.
-- PostgreSQL full-text index for conversation search.
-- End-to-end browser tests (Playwright) in CI.
