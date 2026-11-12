@@ -1,9 +1,46 @@
-target
-frontend
+# Version control
 .git
-.idea
-.vscode
-.claude
+.gitignore
+.gitattributes
+
+# IDE & Editor files
+.idea/
+.vscode/
 *.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# AI and Agent workspace directories
+.claude/
+.gemini/
+
+# Maven & Java build outputs
+target/
+**/target/
+build/
+**/build/
+
+# Frontend files (frontend is deployed separately to Vercel)
+frontend/
+
+# Local configuration and environment secrets
 .env
 .env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and scratch files
+*.log
+logs/
+tmp/
+
+# Documentation and screenshots
+README.md
+docs/

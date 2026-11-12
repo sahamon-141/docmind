@@ -1,9 +1,12 @@
 package com.example.docmind.exception;
 
+import com.example.docmind.config.AppProperties;
 import com.example.docmind.dto.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,8 +32,11 @@ import java.util.Map;
 
 // Converts every failure into the ApiResponse envelope. Internal details and stack traces never reach the client.
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final AppProperties appProperties;
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Object>> handleApi(ApiException ex) {
@@ -38,6 +44,11 @@ public class GlobalExceptionHandler {
             logger.error("{}: {}", ex.getCode(), ex.getMessage(), ex.getCause());
         } else {
             logger.debug("{}: {}", ex.getCode(), ex.getMessage());
+        }
+        if (ex instanceof RateLimitException rate) {
+            return ResponseEntity.status(ex.getStatus())
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(rate.getRetryAfterSeconds()))
+                    .body(ApiResponse.error(ex.getCode(), ex.getMessage(), null));
         }
         return respond(ex.getStatus(), ex.getCode(), ex.getMessage(), ex.getData());
     }
@@ -72,7 +83,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Object>> handleMaxSize(MaxUploadSizeExceededException ex) {
-        return respond(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "File size exceeds the allowed upload limit", null);
+        return respond(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
+                "Files larger than " + appProperties.getDocuments().getMaxFileSize().toMegabytes() + " MB are not accepted", null);
     }
 
     @ExceptionHandler(MultipartException.class)

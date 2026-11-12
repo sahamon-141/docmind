@@ -65,7 +65,8 @@ export function fileExtension(name: string): string {
 }
 
 export const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'md', 'markdown', 'csv', 'docx', 'doc', 'pptx', 'odt', 'rtf', 'html', 'htm'];
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+// fallback until /users/me/limits has loaded; the server enforces the real value
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export function newId(): string {
   return crypto.randomUUID();

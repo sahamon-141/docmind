@@ -30,6 +30,9 @@ import java.util.UUID;
  * Owner-scoped document lifecycle. Every read and delete goes through findByIdAndOwnerId, so another
  * user's document behaves exactly like a missing one (404).
  * <p>
+ * Each user may keep at most app.documents.max-documents-per-user documents, and uploads count
+ * against a per-user rate limit, so one account cannot exhaust the embedding budget.
+ * <p>
  * Uploads are processed synchronously, but not in one transaction: the PROCESSING row is committed first,
  * the slow embedding call runs outside any transaction, and the final INDEXED/FAILED status is committed
  * afterwards. A failed upload therefore stays visible in the library with its error message.
@@ -48,18 +51,29 @@ public class DocumentMetaDataService {
     private final VectorStore vectorStore;
     private final TransactionTemplate transactionTemplate;
     private final AppProperties appProperties;
+    private final RateLimiterService rateLimiter;
 
     //main method to upload and convert them to chunks and store the embeddings into the vectorStore database
     public DocumentResponseDto uploadAndProcess(AuthUser user, MultipartFile file) {
         DocumentValidationService.ValidatedFile validated = validationService.validate(file);
 
-        DocumentMetadata document = transactionTemplate.execute(status -> documentRepo.save(DocumentMetadata.builder()
-                .owner(userRepository.getReferenceById(user.id()))
-                .filename(validated.filename())
-                .contentType(validated.contentType())
-                .fileSize((long) validated.bytes().length)
-                .status(DocumentStatus.PROCESSING)
-                .build()));
+        DocumentMetadata document = transactionTemplate.execute(status -> {
+            var owner = userRepository.findByIdForUpdate(user.id())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            int maxDocuments = appProperties.getDocuments().getMaxDocumentsPerUser();
+            if (documentRepo.countByOwnerId(user.id()) >= maxDocuments) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "DOCUMENT_LIMIT_REACHED",
+                        "You can keep up to " + maxDocuments + " documents. Delete one to upload another.");
+            }
+            rateLimiter.consume(user.id(), RateLimiterService.Action.UPLOAD);
+            return documentRepo.save(DocumentMetadata.builder()
+                    .owner(owner)
+                    .filename(validated.filename())
+                    .contentType(validated.contentType())
+                    .fileSize((long) validated.bytes().length)
+                    .status(DocumentStatus.PROCESSING)
+                    .build());
+        });
         UUID documentId = document.getId();
         log.info("Processing document {} for user {}", documentId, user.id());
 

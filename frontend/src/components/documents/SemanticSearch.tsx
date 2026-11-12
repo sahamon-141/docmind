@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Search } from 'lucide-react';
 import { documentsApi } from '../../api/endpoints';
 import { errorMessage } from '../../api/errors';
+import { queryKeys } from '../../hooks/queries';
 import { Button } from '../ui/Button';
 
 interface SemanticSearchProps {
@@ -14,8 +15,10 @@ interface SemanticSearchProps {
 /** Vector search over the signed-in user's own chunks (optionally one document). */
 export function SemanticSearch({ documentId, placeholder = 'Search the meaning of your documents…' }: SemanticSearchProps) {
   const [query, setQuery] = useState('');
+  const queryClient = useQueryClient();
   const search = useMutation({
     mutationFn: (q: string) => documentsApi.search({ query: q, documentId, topK: 8 }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.limits }),
   });
 
   const submit = (e: FormEvent) => {

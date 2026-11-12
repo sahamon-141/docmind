@@ -34,6 +34,7 @@ public class RetrievalService {
     private final VectorStore vectorStore;
     private final DocumentMetaDataRepo documentRepo;
     private final AppProperties appProperties;
+    private final RateLimiterService rateLimiter;
 
     public List<Document> retrieve(Long ownerId, String query, UUID documentId, Integer topK, Double minSimilarity) {
         AppProperties.RagProperties rag = appProperties.getRag();
@@ -58,6 +59,7 @@ public class RetrievalService {
     }
 
     public SearchResultDto search(AuthUser user, SearchRequestDto request) {
+        rateLimiter.consume(user.id(), RateLimiterService.Action.SEARCH);
         List<Document> matches;
         try {
             matches = retrieve(user.id(), request.getQuery(), request.getDocumentId(), request.getTopK(), request.getMinSimilarity());

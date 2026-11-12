@@ -17,4 +17,6 @@ public interface DocumentMetaDataRepo extends JpaRepository<DocumentMetadata, UU
     Optional<DocumentMetadata> findByIdAndOwnerId(UUID id, Long ownerId);
 
     boolean existsByIdAndOwnerId(UUID id, Long ownerId);
+
+    long countByOwnerId(Long ownerId);
 }

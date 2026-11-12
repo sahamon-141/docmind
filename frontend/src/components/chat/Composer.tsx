@@ -18,6 +18,10 @@ interface ComposerProps {
   onScopeChange: (documentId: string | null) => void;
   draft: string;
   onDraftChange: (text: string) => void;
+  /** reason uploads are unavailable (document quota reached) */
+  attachDisabledReason?: string;
+  /** e.g. "17 of 20 questions left this hour" */
+  budgetNote?: string;
 }
 
 export function Composer({
@@ -31,6 +35,8 @@ export function Composer({
   onScopeChange,
   draft,
   onDraftChange,
+  attachDisabledReason,
+  budgetNote,
 }: ComposerProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaId = useId();
@@ -84,10 +90,10 @@ export function Composer({
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            disabled={uploading}
+            disabled={uploading || Boolean(attachDisabledReason)}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-sunken hover:text-ink disabled:opacity-50"
-            aria-label="Upload a document"
-            title="Upload a document"
+            aria-label={attachDisabledReason ?? 'Upload a document'}
+            title={attachDisabledReason ?? 'Upload a document'}
           >
             {uploading ? <Spinner /> : <Paperclip className="size-4" />}
           </button>
@@ -141,6 +147,7 @@ export function Composer({
       </div>
       <p className="mt-2 text-center text-[11px] text-muted">
         Answers are generated from your documents and can be wrong. Check the cited sources.
+        {budgetNote && <span className="font-mono"> · {budgetNote}</span>}
       </p>
     </form>
   );

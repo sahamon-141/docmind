@@ -64,12 +64,14 @@ public class ChatService {
     private final RagService ragService;
     private final TransactionTemplate transactionTemplate;
     private final AppProperties appProperties;
+    private final RateLimiterService rateLimiter;
 
     private record Prepared(Conversation conversation, MessageDto userMessage, String question, UUID documentId,
                             List<RagService.HistoryTurn> history) {
     }
 
     public ChatResponseDto ask(AuthUser user, ChatRequestDto request) {
+        rateLimiter.consume(user.id(), RateLimiterService.Action.CHAT);
         Prepared prepared = prepare(user, request);
         long start = System.nanoTime();
         try {
@@ -94,6 +96,7 @@ public class ChatService {
      * generation still runs to completion and is persisted, so reloading the conversation shows the answer.
      */
     public SseEmitter stream(AuthUser user, ChatRequestDto request) {
+        rateLimiter.consume(user.id(), RateLimiterService.Action.CHAT);
         Prepared prepared = prepare(user, request);
         long start = System.nanoTime();
         List<Document> sources;

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '../api/config';
-import { conversationsApi, documentsApi } from '../api/endpoints';
+import { accountApi, conversationsApi, documentsApi } from '../api/endpoints';
 import type { ConversationDetail, DocumentMetadata } from '../api/types';
 
 export const queryKeys = {
@@ -9,7 +9,17 @@ export const queryKeys = {
   conversations: (q: string) => ['conversations', q] as const,
   conversationsRoot: ['conversations'] as const,
   conversation: (id: string) => ['conversation', id] as const,
+  limits: ['limits'] as const,
 };
+
+/** Document quota, size limit and remaining chat/search/upload budget of the current user. */
+export function useLimits() {
+  return useQuery({
+    queryKey: queryKeys.limits,
+    queryFn: ({ signal }) => accountApi.limits(signal),
+    staleTime: 30_000,
+  });
+}
 
 const isProcessing = (docs: DocumentMetadata[] | undefined) =>
   docs?.some((d) => d.status === 'PROCESSING' || d.status === 'UPLOADING') ?? false;
@@ -36,7 +46,10 @@ export function useDeleteDocument() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => documentsApi.remove(id),
-    onSettled: () => client.invalidateQueries({ queryKey: queryKeys.documents }),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.limits });
+      return client.invalidateQueries({ queryKey: queryKeys.documents });
+    },
   });
 }
 

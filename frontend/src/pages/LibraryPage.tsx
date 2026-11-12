@@ -12,7 +12,7 @@ import { ConfirmDialog } from '../components/ui/Dialog';
 import { EmptyState } from '../components/ui/Misc';
 import { Skeleton } from '../components/ui/Spinner';
 import { useUploader } from '../features/documents/useUploader';
-import { useDeleteDocument, useDocuments } from '../hooks/queries';
+import { useDeleteDocument, useDocuments, useLimits } from '../hooks/queries';
 import { cn, fileExtension, formatBytes, formatDate } from '../lib/format';
 import { useToast } from '../providers/toast-context';
 
@@ -21,6 +21,8 @@ export default function LibraryPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const documents = useDocuments();
+  const { data: limits } = useLimits();
+  const atQuota = limits ? limits.documentsUsed >= limits.maxDocuments : false;
   const remove = useDeleteDocument();
   const uploader = useUploader((r) => toast.success(`${r.filename} indexed`));
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
@@ -54,7 +56,9 @@ export default function LibraryPage() {
                 Your <em className="font-light text-accent-ink">documents</em>
               </h1>
               <p className="mt-2 text-sm text-ink-soft">
-                {documents.isLoading ? 'Loading…' : `${docs.length} uploaded · ${indexed} indexed and searchable`}
+                {documents.isLoading
+                  ? 'Loading…'
+                  : `${docs.length}${limits ? ` of ${limits.maxDocuments}` : ''} documents · ${indexed} indexed and searchable`}
               </p>
             </div>
           </header>
@@ -64,6 +68,10 @@ export default function LibraryPage() {
             items={uploader.items}
             onCancel={uploader.cancel}
             onClear={uploader.clearFinished}
+            maxBytes={limits?.maxFileSizeBytes}
+            disabledReason={
+              atQuota ? `You've reached the limit of ${limits?.maxDocuments} documents. Delete one to upload another.` : undefined
+            }
           />
 
           {indexed > 0 && (

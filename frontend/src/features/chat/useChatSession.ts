@@ -58,6 +58,7 @@ export function useChatSession({ conversationId, onConversationCreated }: Option
         return { ...base, updatedAt: assistantMessage.createdAt, messages: [...kept, userMessage, assistantMessage] };
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.conversationsRoot });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.limits });
     },
     [queryClient],
   );

@@ -47,6 +47,11 @@ public class DocumentValidationService {
         if (file == null || file.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "EMPTY_FILE", "The uploaded file is empty");
         }
+        long maxBytes = appProperties.getDocuments().getMaxFileSize().toBytes();
+        if (file.getSize() > maxBytes) {
+            throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
+                    "Files larger than " + appProperties.getDocuments().getMaxFileSize().toMegabytes() + " MB are not accepted");
+        }
         String filename = sanitizeFilename(file.getOriginalFilename());
         String extension = extensionOf(filename);
         if (extension.isEmpty() || !appProperties.getDocuments().allowedExtensionList().contains(extension)

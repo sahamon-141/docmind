@@ -11,6 +11,7 @@ import type {
   RegisterRequest,
   SearchRequest,
   SearchResult,
+  UsageLimits,
   User,
 } from './types';
 
@@ -40,6 +41,7 @@ export const authApi = {
 };
 
 export const accountApi = {
+  limits: (signal?: AbortSignal) => apiRequest<UsageLimits>('/users/me/limits', { signal }),
   updateProfile: (email: string) => apiRequest<User>('/users/me', { method: 'PATCH', body: { email } }),
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     await apiRequest<null>('/users/me/password', { method: 'POST', body: { currentPassword, newPassword } });

@@ -9,15 +9,20 @@ interface UploadDropzoneProps {
   items: UploadItem[];
   onCancel: (id: string) => void;
   onClear: () => void;
+  maxBytes?: number;
+  /** set when the user has reached the document quota */
+  disabledReason?: string;
 }
 
-export function UploadDropzone({ onFiles, items, onCancel, onClear }: UploadDropzoneProps) {
+export function UploadDropzone({ onFiles, items, onCancel, onClear, maxBytes = MAX_UPLOAD_BYTES, disabledReason }: UploadDropzoneProps) {
+  const disabled = Boolean(disabledReason);
   const inputId = useId();
   const [dragging, setDragging] = useState(false);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
+    if (disabled) return;
     const files = Array.from(e.dataTransfer.files);
     if (files.length) onFiles(files);
   };
@@ -30,24 +35,34 @@ export function UploadDropzone({ onFiles, items, onCancel, onClear }: UploadDrop
         htmlFor={inputId}
         onDragOver={(e) => {
           e.preventDefault();
-          setDragging(true);
+          if (!disabled) setDragging(true);
         }}
+        aria-disabled={disabled || undefined}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center transition-colors',
-          dragging ? 'border-accent bg-accent-soft' : 'border-line-strong hover:border-ink/40 hover:bg-surface/50',
+          disabled
+            ? 'cursor-not-allowed border-line opacity-70'
+            : dragging
+              ? 'border-accent bg-accent-soft'
+              : 'border-line-strong hover:border-ink/40 hover:bg-surface/50',
         )}
       >
         <FileUp className={cn('size-6', dragging ? 'text-accent-ink' : 'text-muted')} aria-hidden />
-        <span className="text-sm font-medium text-ink">
-          Drop files here or <span className="underline underline-offset-4">browse</span>
-        </span>
-        <span className="label-mono">PDF · DOCX · PPTX · TXT · MD · CSV · HTML · RTF · ODT — up to {formatBytes(MAX_UPLOAD_BYTES)}</span>
+        {disabled ? (
+          <span className="text-sm font-medium text-ink">{disabledReason}</span>
+        ) : (
+          <span className="text-sm font-medium text-ink">
+            Drop files here or <span className="underline underline-offset-4">browse</span>
+          </span>
+        )}
+        <span className="label-mono">PDF · DOCX · PPTX · TXT · MD · CSV · HTML · RTF · ODT — up to {formatBytes(maxBytes)} each</span>
         <input
           id={inputId}
           type="file"
           multiple
+          disabled={disabled}
           className="sr-only"
           accept=".pdf,.txt,.md,.markdown,.csv,.docx,.doc,.pptx,.odt,.rtf,.html,.htm"
           onChange={(e) => {

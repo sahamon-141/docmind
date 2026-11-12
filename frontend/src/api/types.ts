@@ -128,6 +128,22 @@ export interface ChatRequest {
   retryOfMessageId?: string;
 }
 
+export interface Usage {
+  limit: number;
+  remaining: number;
+  windowSeconds: number;
+}
+
+/** GET /users/me/limits: per-user quotas that protect the AI budget. */
+export interface UsageLimits {
+  maxDocuments: number;
+  documentsUsed: number;
+  maxFileSizeBytes: number;
+  chat: Usage;
+  search: Usage;
+  upload: Usage;
+}
+
 export interface ChatExchange {
   conversation: ConversationSummary;
   userMessage: Message;

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { documentsApi } from '../../api/endpoints';
 import { errorMessage, isApiError } from '../../api/errors';
 import type { DocumentMetadata, DocumentUploadResult } from '../../api/types';
-import { queryKeys } from '../../hooks/queries';
+import { queryKeys, useLimits } from '../../hooks/queries';
 import { fileExtension, formatBytes, MAX_UPLOAD_BYTES, newId, SUPPORTED_EXTENSIONS } from '../../lib/format';
 
 export type UploadPhase = 'queued' | 'uploading' | 'processing' | 'done' | 'error';
@@ -20,12 +20,12 @@ export interface UploadItem {
 }
 
 /** Returns an error message if the file is rejected before upload (the server validates again). */
-export function precheckFile(file: File): string | null {
+export function precheckFile(file: File, maxBytes: number = MAX_UPLOAD_BYTES): string | null {
   if (!SUPPORTED_EXTENSIONS.includes(fileExtension(file.name))) {
     return `Unsupported type. Use ${SUPPORTED_EXTENSIONS.filter((e) => e !== 'markdown' && e !== 'htm').join(', ')}.`;
   }
   if (file.size === 0) return 'The file is empty.';
-  if (file.size > MAX_UPLOAD_BYTES) return `Larger than the ${formatBytes(MAX_UPLOAD_BYTES)} limit.`;
+  if (file.size > maxBytes) return `Larger than the ${formatBytes(maxBytes)} limit.`;
   return null;
 }
 
@@ -38,6 +38,9 @@ export function useUploader(onUploaded?: (result: DocumentUploadResult) => void)
   const [items, setItems] = useState<UploadItem[]>([]);
   const controllers = useRef(new Map<string, AbortController>());
   const callbackRef = useRef(onUploaded);
+  const { data: limits } = useLimits();
+  const maxBytes = limits?.maxFileSizeBytes ?? MAX_UPLOAD_BYTES;
+  const freeSlots = limits ? Math.max(0, limits.maxDocuments - limits.documentsUsed) : Number.POSITIVE_INFINITY;
 
   useEffect(() => {
     callbackRef.current = onUploaded;
@@ -74,6 +77,7 @@ export function useUploader(onUploaded?: (result: DocumentUploadResult) => void)
       } finally {
         controllers.current.delete(id);
         void queryClient.invalidateQueries({ queryKey: queryKeys.documents });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.limits });
       }
     },
     [patch, queryClient],
@@ -84,7 +88,11 @@ export function useUploader(onUploaded?: (result: DocumentUploadResult) => void)
       const accepted: { file: File; id: string }[] = [];
       const next: UploadItem[] = files.map((file) => {
         const id = newId();
-        const error = precheckFile(file);
+        let error = precheckFile(file, maxBytes);
+        // the server enforces the quota too; this just avoids sending files that would be refused
+        if (!error && accepted.length >= freeSlots) {
+          error = `Document limit reached (${limits?.maxDocuments}). Delete a document to upload another.`;
+        }
         if (!error) accepted.push({ file, id });
         return { id, name: file.name, size: file.size, progress: 0, phase: error ? 'error' : 'queued', error: error ?? undefined };
       });
@@ -93,7 +101,7 @@ export function useUploader(onUploaded?: (result: DocumentUploadResult) => void)
         await uploadOne(file, id);
       }
     },
-    [uploadOne],
+    [uploadOne, maxBytes, freeSlots, limits?.maxDocuments],
   );
 
   const cancel = useCallback((id: string) => controllers.current.get(id)?.abort(), []);

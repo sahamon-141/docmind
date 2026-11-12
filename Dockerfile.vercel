@@ -1,0 +1,40 @@
+# Multi-stage Dockerfile for DocMind Spring Boot backend
+# Note: Vercel is a serverless platform designed for frontends and serverless functions;
+# it does not natively run persistent Docker containers or Java/Spring Boot applications.
+# This Dockerfile is container-platform ready (Render, Railway, Fly.io, Google Cloud Run, AWS)
+# while the frontend in ./frontend is deployed to Vercel.
+
+# Stage 1: Build the Java application using Maven
+FROM eclipse-temurin:17-jdk AS build
+
+WORKDIR /workspace
+
+# Copy Maven wrapper files and pom.xml first to optimize Docker layer caching
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw && ./mvnw -q -B dependency:go-offline
+
+# Copy source code and build production jar
+COPY src src
+RUN ./mvnw -q -B clean package -DskipTests && cp target/docmind-*.jar app.jar
+
+# Stage 2: Secure, lightweight runtime using Temurin JRE 17
+FROM eclipse-temurin:17-jre
+
+# Run with an unprivileged system user for security
+RUN useradd --system --uid 10001 docmind
+
+WORKDIR /app
+
+# Copy compiled JAR with correct user ownership
+COPY --from=build --chown=docmind:docmind /workspace/app.jar app.jar
+
+USER docmind
+
+# Dynamic port binding: Reads $PORT from environment (standard in container hosts), defaulting to 8081
+ENV PORT=8081
+EXPOSE ${PORT}
+
+# JVM flags tuned for container memory limits (75% of container RAM) and binding to $PORT
+ENTRYPOINT ["sh", "-c", "java -XX:MaxRAMPercentage=75 -Dserver.port=${PORT} -jar /app/app.jar"]
+

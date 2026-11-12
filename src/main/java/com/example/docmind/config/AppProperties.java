@@ -1,9 +1,12 @@
 package com.example.docmind.config;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.unit.DataSize;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -19,6 +22,8 @@ public class AppProperties {
     private DocumentProperties documents = new DocumentProperties();
     private CorsProperties cors = new CorsProperties();
     private SecurityProperties security = new SecurityProperties();
+    private RateLimitProperties rateLimit = new RateLimitProperties();
+    private KeepAliveProperties keepAlive = new KeepAliveProperties();
 
     @Getter
     @Setter
@@ -28,8 +33,9 @@ public class AppProperties {
         private String allowedMethods = "GET,POST,PATCH,PUT,DELETE,OPTIONS";
         private String allowedHeaders = "Authorization,Content-Type,X-DocMind-CSRF,Accept";
 
+        // a browser Origin never has a trailing slash, so "https://app.example.com/" is normalised
         public List<String> allowedOriginList() {
-            return splitCsv(allowedOrigins);
+            return splitCsv(allowedOrigins).stream().map(o -> o.replaceAll("/+$", "")).toList();
         }
     }
 
@@ -50,12 +56,44 @@ public class AppProperties {
     @Getter
     @Setter
     public static class DocumentProperties {
-        private int maxFilesPerRequest = 10;
+        private int maxFilesPerRequest = 3;
+        // per-upload size cap, checked in addition to the servlet multipart limit
+        private DataSize maxFileSize = DataSize.ofMegabytes(10);
+        // documents a single user may keep (any status); deleting one frees a slot
+        private int maxDocumentsPerUser = 3;
         private String allowedExtensions = "pdf,txt,md,markdown,csv,docx,doc,pptx,odt,rtf,html,htm";
 
         public List<String> allowedExtensionList() {
             return splitCsv(allowedExtensions).stream().map(e -> e.toLowerCase(Locale.ROOT)).toList();
         }
+    }
+
+    // Per-user request budgets that protect the paid AI provider (sliding window, in memory).
+    @Getter
+    @Setter
+    public static class RateLimitProperties {
+        private boolean enabled = true;
+        private Limit chat = new Limit(20, Duration.ofHours(1));
+        private Limit search = new Limit(60, Duration.ofHours(1));
+        private Limit upload = new Limit(10, Duration.ofDays(1));
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Limit {
+        private int requests;
+        private Duration window;
+    }
+
+    // Periodically calls the service's own public health URL so a free Render instance is not spun down.
+    @Getter
+    @Setter
+    public static class KeepAliveProperties {
+        // full URL or a base URL (then /actuator/health is appended); empty disables the job
+        private String url = "";
+        private Duration interval = Duration.ofMinutes(10);
     }
 
     @Getter

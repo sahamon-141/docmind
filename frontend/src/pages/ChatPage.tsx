@@ -12,7 +12,7 @@ import { EmptyState } from '../components/ui/Misc';
 import { Skeleton } from '../components/ui/Spinner';
 import { useChatSession } from '../features/chat/useChatSession';
 import { useUploader } from '../features/documents/useUploader';
-import { useConversation, useDocuments } from '../hooks/queries';
+import { useConversation, useDocuments, useLimits } from '../hooks/queries';
 import { useToast } from '../providers/toast-context';
 
 interface SourcesState {
@@ -28,6 +28,11 @@ export default function ChatPage() {
   const key = conversationId ?? 'new';
 
   const documentsQuery = useDocuments();
+  const { data: limits } = useLimits();
+  const atQuota = limits ? limits.documentsUsed >= limits.maxDocuments : false;
+  const budgetNote = limits
+    ? `${limits.chat.remaining} of ${limits.chat.limit} questions left ${limits.chat.windowSeconds === 3600 ? 'this hour' : 'in this window'}`
+    : undefined;
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
 
   const onConversationCreated = useCallback((id: string) => navigate(`/chat/${id}`, { replace: true }), [navigate]);
@@ -218,6 +223,8 @@ export default function ChatPage() {
             onScopeChange={(id) => setScopes((s) => ({ ...s, [key]: id }))}
             draft={draft}
             onDraftChange={setDraft}
+            attachDisabledReason={atQuota ? `Document limit reached (${limits?.maxDocuments})` : undefined}
+            budgetNote={budgetNote}
           />
         )}
       </section>
